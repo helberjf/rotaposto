@@ -1,0 +1,83 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [postgis]
+}
+
+enum FuelType {
+  GASOLINE
+  ETHANOL
+  DIESEL
+  GNV
+}
+
+enum StationSource {
+  OWNER
+  DRIVER
+}
+
+model StationOwner {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  stations  Station[]
+}
+
+model Station {
+  id         String       @id @default(cuid())
+  name       String
+  cnpj       String?
+  address    String
+  lat        Float
+  lng        Float
+  brand      String?
+  phone      String?
+  source     StationSource @default(OWNER)
+  isVerified Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  
+  ownerId    String?
+  owner      StationOwner? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  
+  fuelPrices       FuelPrice[]
+  driverReports    DriverPriceReport[]
+
+  @@index([lat, lng])
+}
+
+model FuelPrice {
+  id        String   @id @default(cuid())
+  fuelType  FuelType
+  price     Float
+  updatedAt DateTime @updatedAt
+  
+  stationId String
+  station   Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@unique([stationId, fuelType])
+  @@index([stationId])
+}
+
+model DriverPriceReport {
+  id           String   @id @default(cuid())
+  fuelType     FuelType
+  price        Float
+  reporterHash String
+  reporterLat  Float
+  reporterLng  Float
+  createdAt    DateTime @default(now())
+  
+  stationId    String
+  station      Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId, createdAt])
+  @@index([reporterHash])
+}
