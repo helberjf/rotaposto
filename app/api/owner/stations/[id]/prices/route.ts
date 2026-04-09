@@ -11,9 +11,10 @@ const priceSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const sql = getSql()
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
@@ -25,7 +26,7 @@ export async function PATCH(
 
     // Verify station ownership
     const station = await sql`
-      SELECT id FROM "Station" WHERE id = ${params.id} AND "ownerId" = ${session.user.id} LIMIT 1
+      SELECT id FROM "Station" WHERE id = ${id} AND "ownerId" = ${session.user.id} LIMIT 1
     `
 
     if (!station.length) {
@@ -37,7 +38,7 @@ export async function PATCH(
     
     const result = await sql`
       INSERT INTO "FuelPrice" (id, "stationId", "fuelType", price, "updatedAt")
-      VALUES (${priceId}, ${params.id}, ${parsed.fuelType}, ${parsed.price}, NOW())
+      VALUES (${priceId}, ${id}, ${parsed.fuelType}, ${parsed.price}, NOW())
       ON CONFLICT ("stationId", "fuelType") DO UPDATE
       SET price = ${parsed.price}, "updatedAt" = NOW()
       RETURNING id, "stationId", "fuelType", price, "updatedAt"

@@ -11,9 +11,24 @@ import StationMap from '@/components/driver/station-map'
 import RadiusSearchForm from '@/components/driver/radius-search-form'
 import RouteSearchForm from '@/components/driver/route-search-form'
 
+interface Station {
+  id: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+  brand?: string
+  phone?: string
+  distance_km?: number
+  source: string
+  isVerified: boolean
+  fuel_prices?: Array<{ fuelType: string; price: number; updatedAt: string }>
+  [key: string]: unknown
+}
+
 export default function DriverPage() {
   const [searchType, setSearchType] = useState<'radius' | 'route'>('radius')
-  const [stations, setStations] = useState([])
+  const [stations, setStations] = useState<Station[]>([])
   const [loading, setLoading] = useState(false)
   const [mapCenter, setMapCenter] = useState<[number, number]>([-23.5505, -46.6333]) // São Paulo
 

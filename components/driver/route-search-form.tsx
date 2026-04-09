@@ -8,7 +8,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Navigation } from 'lucide-react'
 
 interface SearchResult {
-  stations: Array<Record<string, unknown>>
+  stations: Array<Record<string, unknown> & { id: string; name: string; address: string; lat: number; lng: number; source: string; isVerified: boolean }>
   center?: [number, number]
 }
 

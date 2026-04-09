@@ -16,9 +16,10 @@ const stationSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const sql = getSql()
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
@@ -33,7 +34,7 @@ export async function GET(
              ) FILTER (WHERE fp.id IS NOT NULL), '[]'::json) as fuel_prices
       FROM "Station" s
       LEFT JOIN "FuelPrice" fp ON s.id = fp."stationId"
-      WHERE s.id = ${params.id} AND s."ownerId" = ${session.user.id}
+      WHERE s.id = ${id} AND s."ownerId" = ${session.user.id}
       GROUP BY s.id
       LIMIT 1
     `
@@ -51,9 +52,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const sql = getSql()
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
@@ -68,7 +70,7 @@ export async function PATCH(
       SET name = ${parsed.name}, cnpj = ${parsed.cnpj || null}, address = ${parsed.address},
           lat = ${parsed.lat}, lng = ${parsed.lng}, brand = ${parsed.brand || null},
           phone = ${parsed.phone || null}, "updatedAt" = NOW()
-      WHERE id = ${params.id} AND "ownerId" = ${session.user.id}
+      WHERE id = ${id} AND "ownerId" = ${session.user.id}
       RETURNING id, name, cnpj, address, lat, lng, brand, phone, source, "isVerified", "createdAt", "updatedAt"
     `
 
