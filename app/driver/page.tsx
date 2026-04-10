@@ -40,10 +40,19 @@ type BusyAction =
 type FuelType = 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'GNV'
 type MapLayerMode = 'map' | 'satellite'
 
-interface StationFuelPrice {
+type StationFuelPrice = {
   fuelType: FuelType
   price: number
   updatedAt: string
+}
+
+interface StationCommunityPrice extends StationFuelPrice {
+  reportCount?: number
+}
+
+interface PriceReportResult {
+  fuelType: FuelType
+  communityPrice?: StationCommunityPrice | null
 }
 
 interface Station {
@@ -59,6 +68,9 @@ interface Station {
   source: string
   isVerified: boolean
   fuel_prices: StationFuelPrice[]
+  owner_prices: StationFuelPrice[]
+  community_prices: StationCommunityPrice[]
+}
 }
 
 type SuggestedStationPayload = Station
@@ -395,6 +407,7 @@ export default function DriverPage() {
   }
 
   function handleSuggestedStationCreated(station: SuggestedStationPayload) {
+<<<<<<< HEAD
     setStations((previous) => {
       if (previous.some((item) => item.id === station.id)) {
         return previous
@@ -405,6 +418,57 @@ export default function DriverPage() {
     setMapCenter([station.lat, station.lng])
     setSearchSummary('Posto sugerido adicionado ao mapa com sucesso.')
   }
+=======
+    const [normalizedStation] = normalizeStations([station])
+
+    if (!normalizedStation) {
+      return
+    }
+
+    setStations((previous) => {
+      if (previous.some((item) => item.id === normalizedStation.id)) {
+        return previous
+      }
+
+      return [normalizedStation, ...previous]
+    })
+    setMapCenter([normalizedStation.lat, normalizedStation.lng])
+    setSearchSummary('Posto sugerido adicionado ao mapa com sucesso.')
+  }
+
+  function handleStationPriceUpdated(
+    stationId: string,
+    result: PriceReportResult
+  ) {
+    const nextCommunityPrice = result.communityPrice
+
+    if (!nextCommunityPrice) {
+      return
+    }
+
+    setStations((previous) =>
+      previous.map((station) => {
+        if (station.id !== stationId) {
+          return station
+        }
+
+        const nextCommunityPrices = upsertCommunityPrice(
+          station.community_prices,
+          nextCommunityPrice
+        )
+
+        return {
+          ...station,
+          community_prices: nextCommunityPrices,
+          fuel_prices:
+            station.owner_prices.length > 0
+              ? station.owner_prices
+              : nextCommunityPrices,
+        }
+      })
+    )
+  }
+>>>>>>> 085f692 (refactor(driver/page): ajusta tipos de Station e integração\n\n- Alinha tipos de Station e SearchResult\n- Melhora integração da página do motorista\n)
 
   return (
     <div className="min-h-screen bg-[#fffdfa] text-[#18181b]">
@@ -784,6 +848,10 @@ export default function DriverPage() {
                 stations={visibleStations}
                 preferredFuelType={selectedFuelType}
                 highlightStationId={cheapestStationId}
+<<<<<<< HEAD
+=======
+                onPriceSubmitted={handleStationPriceUpdated}
+>>>>>>> 085f692 (refactor(driver/page): ajusta tipos de Station e integração\n\n- Alinha tipos de Station e SearchResult\n- Melhora integração da página do motorista\n)
               />
             </section>
           ) : searchSummary ? (
@@ -1113,9 +1181,22 @@ function normalizeStations(payload: unknown): Station[] {
   return payload
     .map((item) => {
       const station = item as Record<string, unknown>
+<<<<<<< HEAD
       const rawPrices = Array.isArray(station.fuel_prices)
         ? station.fuel_prices
         : []
+=======
+      const rawOwnerPrices = Array.isArray(station.owner_prices)
+        ? station.owner_prices
+        : Array.isArray(station.fuel_prices)
+          ? station.fuel_prices
+          : []
+      const rawCommunityPrices = Array.isArray(station.community_prices)
+        ? station.community_prices
+        : []
+      const ownerPrices = normalizeFuelPrices(rawOwnerPrices)
+      const communityPrices = normalizeCommunityPrices(rawCommunityPrices)
+>>>>>>> 085f692 (refactor(driver/page): ajusta tipos de Station e integração\n\n- Alinha tipos de Station e SearchResult\n- Melhora integração da página do motorista\n)
 
       return {
         id: String(station.id || ''),
@@ -1131,6 +1212,7 @@ function normalizeStations(payload: unknown): Station[] {
             : Number(station.distance),
         source: String(station.source || 'OWNER'),
         isVerified: Boolean(station.isVerified),
+<<<<<<< HEAD
         fuel_prices: rawPrices
           .map((price) => {
             const fuel = price as Record<string, unknown>
@@ -1142,6 +1224,11 @@ function normalizeStations(payload: unknown): Station[] {
             }
           })
           .filter((price) => Number.isFinite(price.price)),
+=======
+        fuel_prices: ownerPrices.length > 0 ? ownerPrices : communityPrices,
+        owner_prices: ownerPrices,
+        community_prices: communityPrices,
+>>>>>>> 085f692 (refactor(driver/page): ajusta tipos de Station e integração\n\n- Alinha tipos de Station e SearchResult\n- Melhora integração da página do motorista\n)
       }
     })
     .filter(
@@ -1180,11 +1267,72 @@ function getPreferredFuelPrice(
   station: Station,
   preferredFuelType: FuelType
 ): number | null {
+<<<<<<< HEAD
   const price = station.fuel_prices.find(
     (fuel) => fuel.fuelType === preferredFuelType
   )
 
   return price ? price.price : null
+=======
+  const communityPrice = station.community_prices.find(
+    (fuel) => fuel.fuelType === preferredFuelType
+  )
+
+  if (communityPrice) {
+    return communityPrice.price
+  }
+
+  const ownerPrice = station.owner_prices.find(
+    (fuel) => fuel.fuelType === preferredFuelType
+  )
+
+  return ownerPrice ? ownerPrice.price : null
+}
+
+function normalizeFuelPrices(entries: unknown[]): StationFuelPrice[] {
+  return entries
+    .map((price) => {
+      const fuel = price as Record<string, unknown>
+
+      return {
+        fuelType: String(fuel.fuelType) as FuelType,
+        price: Number(fuel.price),
+        updatedAt: String(fuel.updatedAt || new Date().toISOString()),
+      }
+    })
+    .filter((price) => Number.isFinite(price.price))
+}
+
+function normalizeCommunityPrices(entries: unknown[]): StationCommunityPrice[] {
+  return entries
+    .map((price) => {
+      const fuel = price as Record<string, unknown>
+
+      return {
+        fuelType: String(fuel.fuelType) as FuelType,
+        price: Number(fuel.price),
+        updatedAt: String(fuel.updatedAt || new Date().toISOString()),
+        reportCount:
+          fuel.reportCount === undefined || fuel.reportCount === null
+            ? undefined
+            : Number(fuel.reportCount),
+      }
+    })
+    .filter((price) => Number.isFinite(price.price))
+}
+
+function upsertCommunityPrice(
+  currentPrices: StationCommunityPrice[],
+  nextPrice: StationCommunityPrice
+) {
+  const filteredPrices = currentPrices.filter(
+    (price) => price.fuelType !== nextPrice.fuelType
+  )
+
+  return normalizeCommunityPrices([...filteredPrices, nextPrice]).sort(
+    (priceA, priceB) => priceA.fuelType.localeCompare(priceB.fuelType)
+  )
+>>>>>>> 085f692 (refactor(driver/page): ajusta tipos de Station e integração\n\n- Alinha tipos de Station e SearchResult\n- Melhora integração da página do motorista\n)
 }
 
 function decodePolyline(
