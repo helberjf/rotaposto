@@ -32,37 +32,27 @@ export async function POST(request: NextRequest) {
       )
     `
 
-    // Update station's fuel price with average of recent reports
     const recentReports = await sql`
-      SELECT AVG(price) as avg_price
+      SELECT
+        ROUND(AVG(price)::numeric, 2)::double precision as avg_price,
+        MAX("createdAt") as updated_at,
+        COUNT(*)::int as report_count
       FROM "DriverPriceReport"
       WHERE "stationId" = ${parsed.stationId}
         AND "fuelType" = ${parsed.fuelType}
-        AND "createdAt" > NOW() - INTERVAL '24 hours'
+        AND "createdAt" > NOW() - INTERVAL '7 days'
     `
 
-    if (recentReports[0]?.avg_price) {
-      const avgPrice = recentReports[0].avg_price
-      
-      // Try to update existing price
-      const existing = await sql`
-        UPDATE "FuelPrice"
-        SET price = ${avgPrice}, "updatedAt" = NOW()
-        WHERE "stationId" = ${parsed.stationId} AND "fuelType" = ${parsed.fuelType}
-        RETURNING id
-      `
+    const communityPrice = recentReports[0]?.avg_price
+      ? {
+          fuelType: parsed.fuelType,
+          price: Number(recentReports[0].avg_price),
+          updatedAt: String(recentReports[0].updated_at || new Date().toISOString()),
+          reportCount: Number(recentReports[0].report_count || 1),
+        }
+      : null
 
-      // If no existing record, create one
-      if (existing.length === 0) {
-        const priceId = `price_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        await sql`
-          INSERT INTO "FuelPrice" (id, "stationId", "fuelType", price, "updatedAt")
-          VALUES (${priceId}, ${parsed.stationId}, ${parsed.fuelType}, ${avgPrice}, NOW())
-        `
-      }
-    }
-
-    return NextResponse.json({ success: true, reportId: id })
+    return NextResponse.json({ success: true, reportId: id, communityPrice })
   } catch (error) {
     console.error('[price-report] Error:', error)
     if (error instanceof z.ZodError) {
