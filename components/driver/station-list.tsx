@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import PriceReportDialog from './price-report-dialog'
-import { MapPin, Phone, Share2, ThumbsUp } from 'lucide-react'
+import { MapPin, PencilLine, Phone, Share2 } from 'lucide-react'
 
 type FuelType = 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'GNV'
 
@@ -11,6 +11,10 @@ interface FuelPrice {
   fuelType: FuelType
   price: number
   updatedAt: string
+}
+
+interface CommunityFuelPrice extends FuelPrice {
+  reportCount?: number
 }
 
 interface Station {
@@ -24,18 +28,27 @@ interface Station {
   distance?: number
   canReach?: boolean
   fuel_prices?: FuelPrice[]
+  owner_prices?: FuelPrice[]
+  community_prices?: CommunityFuelPrice[]
   source: string
   isVerified: boolean
+}
+
+interface PriceReportResult {
+  fuelType: FuelType
+  communityPrice?: CommunityFuelPrice | null
 }
 
 export default function StationList({
   stations,
   preferredFuelType,
   highlightStationId,
+  onPriceSubmitted,
 }: {
   stations: Station[]
   preferredFuelType?: FuelType
   highlightStationId?: string
+  onPriceSubmitted?: (stationId: string, result: PriceReportResult) => void
 }) {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null)
   const [sharedStationId, setSharedStationId] = useState<string | null>(null)
@@ -67,14 +80,45 @@ export default function StationList({
     }
   }
 
+  function handlePriceSubmitted(result: PriceReportResult) {
+    if (!selectedStation) {
+      setSelectedStation(null)
+      return
+    }
+
+    onPriceSubmitted?.(selectedStation.id, result)
+    setSelectedStation(null)
+  }
+
   return (
     <>
       <div className="grid gap-4 lg:grid-cols-2">
         {stations.map((station) => {
-          const prices = reorderFuelPrices(station.fuel_prices || [], preferredFuelType)
-          const featuredPrice = preferredFuelType
-            ? prices.find((fuel) => fuel.fuelType === preferredFuelType)
-            : prices[0]
+          const ownerPrices = reorderFuelPrices(
+            station.owner_prices || station.fuel_prices || [],
+            preferredFuelType
+          )
+          const communityPrices = reorderFuelPrices(
+            station.community_prices || [],
+            preferredFuelType
+          )
+          const featuredOwnerPrice = preferredFuelType
+            ? ownerPrices.find((fuel) => fuel.fuelType === preferredFuelType)
+            : ownerPrices[0]
+          const featuredCommunityPrice = preferredFuelType
+            ? communityPrices.find((fuel) => fuel.fuelType === preferredFuelType)
+            : communityPrices[0]
+          const displayPrice = featuredCommunityPrice || featuredOwnerPrice
+          const displaySourceLabel = featuredCommunityPrice
+            ? 'Comunidade'
+            : featuredOwnerPrice
+              ? 'Dono'
+              : null
+          const fuelRows = buildFuelComparisonRows(
+            ownerPrices,
+            communityPrices,
+            preferredFuelType
+          )
           const isCheapest = highlightStationId === station.id
 
           return (
@@ -118,14 +162,17 @@ export default function StationList({
                   ) : null}
                 </div>
 
-                {featuredPrice ? (
+                {displayPrice ? (
                   <div className="rounded-2xl bg-[#fff4eb] px-4 py-3 text-right">
                     <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#78716c]">
-                      {formatFuelType(featuredPrice.fuelType)}
+                      {formatFuelType(displayPrice.fuelType)}
                     </p>
                     <p className="text-lg font-semibold text-[#ea580c]">
-                      R$ {featuredPrice.price.toFixed(2)}
+                      R$ {displayPrice.price.toFixed(2)}
                     </p>
+                    {displaySourceLabel ? (
+                      <p className="mt-1 text-xs text-[#78716c]">{displaySourceLabel}</p>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -153,10 +200,19 @@ export default function StationList({
                 ) : null}
               </div>
 
-              {prices.length > 0 ? (
+              {fuelRows.length > 0 ? (
                 <div className="mt-5 rounded-[18px] bg-[#fcfbf8] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[#18181b]">
+                      Comparativo de preços
+                    </p>
+                    <p className="text-xs text-[#78716c]">
+                      Dono x Comunidade
+                    </p>
+                  </div>
+
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {prices.map((fuel) => (
+                    {fuelRows.map((fuel) => (
                       <div
                         key={fuel.fuelType}
                         className="rounded-2xl border border-[#ece7df] bg-white px-3 py-3"
@@ -164,13 +220,36 @@ export default function StationList({
                         <p className="text-sm font-medium text-[#57534e]">
                           {formatFuelType(fuel.fuelType)}
                         </p>
-                        <p className="mt-1 text-lg font-semibold text-[#18181b]">
-                          R$ {fuel.price.toFixed(2)}
-                        </p>
-                        <p className="mt-1 text-xs text-[#78716c]">
-                          Atualizado em{' '}
-                          {new Date(fuel.updatedAt).toLocaleDateString('pt-BR')}
-                        </p>
+
+                        <div className="mt-3 space-y-2 text-sm">
+                          <div className="flex items-center justify-between gap-3 rounded-xl bg-[#fffaf5] px-3 py-2">
+                            <span className="font-medium text-[#78716c]">Dono</span>
+                            <span className="font-semibold text-[#18181b]">
+                              {fuel.ownerPrice
+                                ? `R$ ${fuel.ownerPrice.price.toFixed(2)}`
+                                : 'Sem valor'}
+                            </span>
+                          </div>
+
+                          <div className="rounded-xl bg-[#f8fbff] px-3 py-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="font-medium text-[#64748b]">
+                                Comunidade
+                              </span>
+                              <span className="font-semibold text-[#0f172a]">
+                                {fuel.communityPrice
+                                  ? `R$ ${fuel.communityPrice.price.toFixed(2)}`
+                                  : 'Sem reportes'}
+                              </span>
+                            </div>
+                            {fuel.communityPrice?.reportCount ? (
+                              <p className="mt-1 text-xs text-[#64748b]">
+                                {fuel.communityPrice.reportCount} reporte
+                                {fuel.communityPrice.reportCount === 1 ? '' : 's'}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -183,8 +262,8 @@ export default function StationList({
                   onClick={() => setSelectedStation(station)}
                   className="h-10 flex-1 rounded-xl bg-[#f97316] text-white hover:bg-[#ea6a12]"
                 >
-                  <ThumbsUp className="mr-2 size-4" />
-                  Reportar Preço
+                  <PencilLine className="mr-2 size-4" />
+                  Editar preço
                 </Button>
                 <Button
                   size="sm"
@@ -205,7 +284,7 @@ export default function StationList({
         <PriceReportDialog
           station={selectedStation}
           onClose={() => setSelectedStation(null)}
-          onSubmit={() => setSelectedStation(null)}
+          onSubmit={handlePriceSubmitted}
         />
       ) : null}
     </>
@@ -213,9 +292,9 @@ export default function StationList({
 }
 
 function reorderFuelPrices(
-  prices: FuelPrice[],
+  prices: Array<FuelPrice | CommunityFuelPrice>,
   preferredFuelType?: FuelType
-): FuelPrice[] {
+): Array<FuelPrice | CommunityFuelPrice> {
   if (!preferredFuelType) {
     return prices
   }
@@ -223,6 +302,41 @@ function reorderFuelPrices(
   return [...prices].sort((priceA, priceB) => {
     if (priceA.fuelType === preferredFuelType) return -1
     if (priceB.fuelType === preferredFuelType) return 1
+    return 0
+  })
+}
+
+function buildFuelComparisonRows(
+  ownerPrices: FuelPrice[],
+  communityPrices: CommunityFuelPrice[],
+  preferredFuelType?: FuelType
+) {
+  const orderedFuelTypes = sortFuelTypes(
+    Array.from(
+      new Set([
+        ...ownerPrices.map((price) => price.fuelType),
+        ...communityPrices.map((price) => price.fuelType),
+      ])
+    ),
+    preferredFuelType
+  )
+
+  return orderedFuelTypes.map((fuelType) => ({
+    fuelType,
+    ownerPrice: ownerPrices.find((price) => price.fuelType === fuelType) || null,
+    communityPrice:
+      communityPrices.find((price) => price.fuelType === fuelType) || null,
+  }))
+}
+
+function sortFuelTypes(fuelTypes: FuelType[], preferredFuelType?: FuelType) {
+  return [...fuelTypes].sort((fuelTypeA, fuelTypeB) => {
+    if (!preferredFuelType) {
+      return 0
+    }
+
+    if (fuelTypeA === preferredFuelType) return -1
+    if (fuelTypeB === preferredFuelType) return 1
     return 0
   })
 }
