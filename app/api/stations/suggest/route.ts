@@ -54,6 +54,8 @@ export async function POST(request: NextRequest) {
         success: true,
         station: {
           ...station[0],
+          owner_prices: [],
+          community_prices: [],
           fuel_prices: [],
         },
       },
