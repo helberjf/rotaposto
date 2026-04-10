@@ -24,6 +24,17 @@ interface SuggestedStation {
   phone?: string
   source: string
   isVerified: boolean
+  owner_prices: Array<{
+    fuelType: 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'GNV'
+    price: number
+    updatedAt: string
+  }>
+  community_prices: Array<{
+    fuelType: 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'GNV'
+    price: number
+    updatedAt: string
+    reportCount?: number
+  }>
   fuel_prices: Array<{
     fuelType: 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'GNV'
     price: number
