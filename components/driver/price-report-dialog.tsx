@@ -4,9 +4,9 @@ import { useState } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,15 +38,15 @@ export default function PriceReportDialog({
 }) {
   const [fuelType, setFuelType] = useState('GASOLINE')
   const [price, setPrice] = useState('')
-  const [reporterLat, setReporterLat] = useState(station.lat.toString())
-  const [reporterLng, setReporterLng] = useState(station.lng.toString())
+  const [reporterLat] = useState(station.lat.toString())
+  const [reporterLng] = useState(station.lng.toString())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  const handleSubmit = async () => {
+  async function handleSubmit() {
     if (!price) {
-      setError('Por favor, informe o preço')
+      setError('Por favor, informe o preço.')
       return
     }
 
@@ -66,23 +66,25 @@ export default function PriceReportDialog({
         }),
       })
 
-      if (!response.ok) throw new Error('Erro ao reportar preço')
+      if (!response.ok) {
+        throw new Error('Erro ao reportar preço.')
+      }
 
       setSuccess(true)
-      setTimeout(() => {
+      window.setTimeout(() => {
         onSubmit()
         onClose()
       }, 1500)
-    } catch (err) {
-      setError('Erro ao reportar. Tente novamente.')
-      console.error(err)
+    } catch (submitError) {
+      console.error(submitError)
+      setError('Erro ao reportar o preço. Tente novamente.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Reportar Preço</DialogTitle>
@@ -91,26 +93,36 @@ export default function PriceReportDialog({
 
         {success ? (
           <div className="py-8 text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 mb-4">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#ecfdf3]">
+              <svg
+                className="h-6 w-6 text-[#16a34a]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
             </div>
-            <p className="text-green-700 font-medium">Preço reportado com sucesso!</p>
-            <p className="text-sm text-gray-600 mt-2">Obrigado por contribuir</p>
+            <p className="font-medium text-[#15803d]">Preço reportado com sucesso.</p>
+            <p className="mt-2 text-sm text-[#78716c]">Obrigado por contribuir.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error ? (
+              <div className="rounded-xl border border-[#fecaca] bg-[#fff1f2] p-3 text-sm text-[#b91c1c]">
                 {error}
               </div>
-            )}
+            ) : null}
 
             <div className="space-y-2">
               <Label htmlFor="fuelType">Tipo de Combustível</Label>
               <Select value={fuelType} onValueChange={setFuelType}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -126,26 +138,35 @@ export default function PriceReportDialog({
               <Label htmlFor="price">Preço (R$)</Label>
               <Input
                 id="price"
-                placeholder="0.00"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
                 type="number"
                 step="0.01"
+                placeholder="0.00"
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
               />
             </div>
 
-            <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded">
-              <p>Sua localização será anonimizada para proteção de privacidade</p>
+            <div className="rounded-xl bg-[#fcfbf8] p-3 text-xs text-[#78716c]">
+              Sua localização será anonimizada para proteger sua privacidade.
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" onClick={onClose} disabled={loading} className="flex-1">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                disabled={loading}
+                className="flex-1"
+              >
                 Cancelar
               </Button>
-              <Button onClick={handleSubmit} disabled={loading} className="flex-1">
+              <Button
+                onClick={() => void handleSubmit()}
+                disabled={loading}
+                className="flex-1 bg-[#f97316] text-white hover:bg-[#ea6a12]"
+              >
                 {loading ? (
                   <>
-                    <Spinner className="w-4 h-4 mr-2" />
+                    <Spinner className="mr-2 h-4 w-4" />
                     Enviando...
                   </>
                 ) : (

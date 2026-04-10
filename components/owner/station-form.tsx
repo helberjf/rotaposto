@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import LocationAutocompleteInput from '@/components/location-autocomplete-input'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -36,12 +37,19 @@ export default function StationForm({
     phone: station?.phone || '',
   })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+
+    setFormData((prev) => {
+      if (name === 'address') {
+        return { ...prev, address: value, lat: '', lng: '' }
+      }
+
+      return { ...prev, [name]: value }
+    })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -64,12 +72,14 @@ export default function StationForm({
         }),
       })
 
-      if (!response.ok) throw new Error('Erro ao salvar estação')
+      if (!response.ok) {
+        throw new Error('Erro ao salvar estação')
+      }
 
       onSuccess()
-    } catch (err) {
+    } catch (submitError) {
+      console.error(submitError)
       setError('Erro ao salvar. Tente novamente.')
-      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -77,11 +87,11 @@ export default function StationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+      {error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
         </div>
-      )}
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
@@ -108,16 +118,29 @@ export default function StationForm({
           />
         </div>
 
-        <div className="md:col-span-2 space-y-2">
+        <div className="space-y-2 md:col-span-2">
           <Label htmlFor="address">Endereço *</Label>
-          <Input
+          <LocationAutocompleteInput
             id="address"
             name="address"
             value={formData.address}
-            onChange={handleChange}
-            required
+            placeholder="Digite o endereço do posto"
             disabled={loading}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, address: value, lat: '', lng: '' }))
+            }
+            onLocationSelect={(suggestion) =>
+              setFormData((prev) => ({
+                ...prev,
+                address: suggestion.label,
+                lat: suggestion.lat.toFixed(6),
+                lng: suggestion.lng.toFixed(6),
+              }))
+            }
           />
+          <p className="text-xs text-gray-500">
+            Selecione uma sugestão para preencher latitude e longitude automaticamente.
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -155,7 +178,7 @@ export default function StationForm({
             name="brand"
             value={formData.brand}
             onChange={handleChange}
-            placeholder="ex: Shell, Petrobrás"
+            placeholder="ex: Shell, Petrobras"
             disabled={loading}
           />
         </div>
@@ -177,7 +200,7 @@ export default function StationForm({
         <Button type="submit" disabled={loading}>
           {loading ? (
             <>
-              <Spinner className="w-4 h-4 mr-2" />
+              <Spinner className="mr-2 h-4 w-4" />
               Salvando...
             </>
           ) : (
