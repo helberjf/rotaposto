@@ -23,7 +23,7 @@ export default function RadiusSearchForm({
 }) {
   const [lat, setLat] = useState('')
   const [lng, setLng] = useState('')
-  const [radius, setRadius] = useState(5000)
+  const [radius, setRadius] = useState(2000)
   const [geoLoading, setGeoLoading] = useState(false)
   const [error, setError] = useState('')
 

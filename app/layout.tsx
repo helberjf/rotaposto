@@ -7,7 +7,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'FuelRoute - Postos e Preços de Combustível',
+  title: 'Rotaposto - Postos e Preços de Combustível',
   description: 'Encontre os melhores preços de combustível na sua rota ou região',
   icons: {
     icon: [

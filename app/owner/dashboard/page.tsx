@@ -92,7 +92,7 @@ export default function DashboardPage() {
               <Fuel className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">FuelRoute</h1>
+              <h1 className="text-xl font-bold text-gray-900">Rotaposto</h1>
               <p className="text-xs text-gray-500">Dashboard do Proprietário</p>
             </div>
           </div>

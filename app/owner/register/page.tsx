@@ -69,7 +69,7 @@ export default function RegisterPage() {
 
         <Card>
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">FuelRoute</CardTitle>
+            <CardTitle className="text-2xl">Rotaposto</CardTitle>
             <CardDescription>Criar conta de proprietÃ¡rio</CardDescription>
           </CardHeader>
           <CardContent>

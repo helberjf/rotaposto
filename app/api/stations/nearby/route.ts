@@ -5,7 +5,7 @@ import { getSql } from '@/lib/db'
 const querySchema = z.object({
   lat: z.coerce.number(),
   lng: z.coerce.number(),
-  radius: z.coerce.number().default(5000), // meters
+  radius: z.coerce.number().default(2000), // meters
 })
 
 export async function GET(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const lat = searchParams.get('lat')
     const lng = searchParams.get('lng')
-    const radius = searchParams.get('radius') || '5000'
+    const radius = searchParams.get('radius') || '2000'
 
     const parsed = querySchema.parse({ lat, lng, radius })
 
