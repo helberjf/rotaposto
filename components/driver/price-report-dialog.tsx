@@ -20,11 +20,30 @@ import {
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 
+type FuelType = 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'GNV'
+
+interface StationFuelPrice {
+  fuelType: FuelType
+  price: number
+  updatedAt: string
+}
+
+interface StationCommunityPrice extends StationFuelPrice {
+  reportCount?: number
+}
+
 interface Station {
   id: string
   name: string
   lat: number
   lng: number
+  owner_prices?: StationFuelPrice[]
+  community_prices?: StationCommunityPrice[]
+}
+
+interface PriceReportResult {
+  fuelType: FuelType
+  communityPrice?: StationCommunityPrice | null
 }
 
 export default function PriceReportDialog({
@@ -34,15 +53,20 @@ export default function PriceReportDialog({
 }: {
   station: Station
   onClose: () => void
-  onSubmit: () => void
+  onSubmit: (result: PriceReportResult) => void
 }) {
-  const [fuelType, setFuelType] = useState('GASOLINE')
+  const [fuelType, setFuelType] = useState<FuelType>('GASOLINE')
   const [price, setPrice] = useState('')
   const [reporterLat] = useState(station.lat.toString())
   const [reporterLng] = useState(station.lng.toString())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+
+  const ownerPrice = station.owner_prices?.find((item) => item.fuelType === fuelType)
+  const communityPrice = station.community_prices?.find(
+    (item) => item.fuelType === fuelType
+  )
 
   async function handleSubmit() {
     if (!price) {
@@ -67,17 +91,24 @@ export default function PriceReportDialog({
       })
 
       if (!response.ok) {
-        throw new Error('Erro ao reportar preço.')
+        throw new Error('Erro ao editar o preço.')
+      }
+
+      const payload = (await response.json()) as {
+        communityPrice?: StationCommunityPrice | null
       }
 
       setSuccess(true)
       window.setTimeout(() => {
-        onSubmit()
+        onSubmit({
+          fuelType,
+          communityPrice: payload.communityPrice,
+        })
         onClose()
       }, 1500)
     } catch (submitError) {
       console.error(submitError)
-      setError('Erro ao reportar o preço. Tente novamente.')
+      setError('Erro ao salvar o preço. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -87,7 +118,7 @@ export default function PriceReportDialog({
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Reportar Preço</DialogTitle>
+          <DialogTitle>Editar Preço</DialogTitle>
           <DialogDescription>{station.name}</DialogDescription>
         </DialogHeader>
 
@@ -108,8 +139,10 @@ export default function PriceReportDialog({
                 />
               </svg>
             </div>
-            <p className="font-medium text-[#15803d]">Preço reportado com sucesso.</p>
-            <p className="mt-2 text-sm text-[#78716c]">Obrigado por contribuir.</p>
+            <p className="font-medium text-[#15803d]">Preço enviado com sucesso.</p>
+            <p className="mt-2 text-sm text-[#78716c]">
+              A média da comunidade foi atualizada.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -121,7 +154,7 @@ export default function PriceReportDialog({
 
             <div className="space-y-2">
               <Label htmlFor="fuelType">Tipo de Combustível</Label>
-              <Select value={fuelType} onValueChange={setFuelType}>
+              <Select value={fuelType} onValueChange={(value) => setFuelType(value as FuelType)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -134,8 +167,52 @@ export default function PriceReportDialog({
               </Select>
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-[#e7d6c7] bg-[#fffaf5] p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#78716c]">
+                  Preço do Dono
+                </p>
+                {ownerPrice ? (
+                  <>
+                    <p className="mt-1 text-lg font-semibold text-[#18181b]">
+                      R$ {ownerPrice.price.toFixed(2)}
+                    </p>
+                    <p className="mt-1 text-xs text-[#78716c]">
+                      Atualizado em{' '}
+                      {new Date(ownerPrice.updatedAt).toLocaleDateString('pt-BR')}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm text-[#78716c]">
+                    Sem valor oficial informado.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-[#dbeafe] bg-[#f8fbff] p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">
+                  Comunidade
+                </p>
+                {communityPrice ? (
+                  <>
+                    <p className="mt-1 text-lg font-semibold text-[#0f172a]">
+                      R$ {communityPrice.price.toFixed(2)}
+                    </p>
+                    <p className="mt-1 text-xs text-[#64748b]">
+                      {communityPrice.reportCount || 1} reporte
+                      {(communityPrice.reportCount || 1) === 1 ? '' : 's'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm text-[#64748b]">
+                    Nenhum valor colaborativo ainda.
+                  </p>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="price">Preço (R$)</Label>
+              <Label htmlFor="price">Seu Preço (R$)</Label>
               <Input
                 id="price"
                 type="number"
@@ -147,7 +224,7 @@ export default function PriceReportDialog({
             </div>
 
             <div className="rounded-xl bg-[#fcfbf8] p-3 text-xs text-[#78716c]">
-              Sua localização será anonimizada para proteger sua privacidade.
+              Seu envio entra como valor colaborativo e sua localização é anonimizada para proteger sua privacidade.
             </div>
 
             <div className="flex gap-2 pt-2">
@@ -167,10 +244,10 @@ export default function PriceReportDialog({
                 {loading ? (
                   <>
                     <Spinner className="mr-2 h-4 w-4" />
-                    Enviando...
+                    Salvando...
                   </>
                 ) : (
-                  'Enviar'
+                  'Salvar'
                 )}
               </Button>
             </div>
