@@ -23,21 +23,54 @@ export async function GET(request: NextRequest) {
       SELECT 
         s.id, s.name, s.address, s.lat, s.lng, s.brand, s.phone, s.source, s."isVerified",
         ST_Distance(s.location, ST_SetSRID(ST_MakePoint(${parsed.lng}, ${parsed.lat}), 4326)::geography) as distance,
-        COALESCE(json_agg(
-          json_build_object(
-            'fuelType', fp."fuelType",
-            'price', fp.price,
-            'updatedAt', fp."updatedAt"
-          ) ORDER BY fp."fuelType"
-        ) FILTER (WHERE fp.id IS NOT NULL), '[]'::json) as fuel_prices
+        COALESCE(owner_prices.prices, '[]'::json) as owner_prices,
+        COALESCE(community_prices.prices, '[]'::json) as community_prices
       FROM "Station" s
-      LEFT JOIN "FuelPrice" fp ON s.id = fp."stationId"
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'fuelType', fp."fuelType",
+              'price', fp.price,
+              'updatedAt', fp."updatedAt"
+            )
+            ORDER BY fp."fuelType"
+          ),
+          '[]'::json
+        ) as prices
+        FROM "FuelPrice" fp
+        WHERE fp."stationId" = s.id
+      ) owner_prices ON true
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'fuelType', reports."fuelType",
+              'price', reports.price,
+              'updatedAt', reports."updatedAt",
+              'reportCount', reports."reportCount"
+            )
+            ORDER BY reports."fuelType"
+          ),
+          '[]'::json
+        ) as prices
+        FROM (
+          SELECT
+            dpr."fuelType",
+            ROUND(AVG(dpr.price)::numeric, 2)::double precision as price,
+            MAX(dpr."createdAt") as "updatedAt",
+            COUNT(*)::int as "reportCount"
+          FROM "DriverPriceReport" dpr
+          WHERE dpr."stationId" = s.id
+            AND dpr."createdAt" > NOW() - INTERVAL '7 days'
+          GROUP BY dpr."fuelType"
+        ) reports
+      ) community_prices ON true
       WHERE ST_DWithin(
         s.location,
         ST_SetSRID(ST_MakePoint(${parsed.lng}, ${parsed.lat}), 4326)::geography,
         ${parsed.radius}
       )
-      GROUP BY s.id
       ORDER BY distance ASC
       LIMIT 50
     `
