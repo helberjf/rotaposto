@@ -459,7 +459,7 @@ export default function DriverPage() {
   return (
     <div className="min-h-screen bg-[#fffdfa] text-[#18181b]">
       <header className="border-b border-[#ece7df] bg-white">
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-300 items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="flex size-8 items-center justify-center rounded-xl bg-[#f97316] text-white shadow-[0_8px_20px_rgba(249,115,22,0.28)]">
               <Fuel className="size-4" />
@@ -472,7 +472,7 @@ export default function DriverPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1200px] px-4 py-7 sm:px-6 sm:py-8">
+      <main className="mx-auto max-w-300 px-4 py-7 sm:px-6 sm:py-8">
         <div className="space-y-8">
           <section className="space-y-5">
             <h1 className="text-3xl font-semibold tracking-tight sm:text-[2.1rem]">
@@ -497,7 +497,7 @@ export default function DriverPage() {
             </div>
           </section>
 
-          <section className="rounded-[24px] border border-[#eaded3] bg-white p-4 shadow-[0_20px_45px_rgba(15,23,42,0.05)] sm:p-5">
+          <section className="rounded-3xl border border-[#eaded3] bg-white p-4 shadow-[0_20px_45px_rgba(15,23,42,0.05)] sm:p-5">
             <StationSuggestionForm onCreated={handleSuggestedStationCreated} />
 
             {error ? (
@@ -769,8 +769,8 @@ export default function DriverPage() {
             )}
 
             <div className="mt-5 overflow-hidden rounded-[22px] border border-[#eaded3] bg-[#fcfbf8]">
-              <div className="relative h-[280px] sm:h-[360px]">
-                <div className="absolute left-4 top-4 z-[500] inline-flex rounded-xl border border-[#e5e7eb] bg-white p-1 shadow-[0_8px_18px_rgba(15,23,42,0.08)]">
+              <div className="relative h-70 sm:h-90">
+                <div className="absolute left-4 top-4 z-500 inline-flex rounded-xl border border-[#e5e7eb] bg-white p-1 shadow-[0_8px_18px_rgba(15,23,42,0.08)]">
                   <button
                     type="button"
                     onClick={() => setMapLayerMode('map')}
