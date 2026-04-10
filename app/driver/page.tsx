@@ -40,7 +40,7 @@ type BusyAction =
 type FuelType = 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'GNV'
 type MapLayerMode = 'map' | 'satellite'
 
-type StationFuelPrice = {
+interface StationFuelPrice {
   fuelType: FuelType
   price: number
   updatedAt: string
@@ -70,7 +70,6 @@ interface Station {
   fuel_prices: StationFuelPrice[]
   owner_prices: StationFuelPrice[]
   community_prices: StationCommunityPrice[]
-}
 }
 
 type SuggestedStationPayload = Station
@@ -1333,84 +1332,3 @@ function upsertCommunityPrice(
     (priceA, priceB) => priceA.fuelType.localeCompare(priceB.fuelType)
   )
 >>>>>>> 085f692 (refactor(driver/page): ajusta tipos de Station e integração\n\n- Alinha tipos de Station e SearchResult\n- Melhora integração da página do motorista\n)
-}
-
-function decodePolyline(
-  encoded: string,
-  precision: number = 5
-): Array<[number, number]> {
-  const coordinates: Array<[number, number]> = []
-  const factor = 10 ** precision
-  let index = 0
-  let lat = 0
-  let lng = 0
-
-  while (index < encoded.length) {
-    let result = 0
-    let shift = 0
-    let byte = 0
-
-    do {
-      byte = encoded.charCodeAt(index++) - 63
-      result |= (byte & 0x1f) << shift
-      shift += 5
-    } while (byte >= 0x20)
-
-    lat += result & 1 ? ~(result >> 1) : result >> 1
-
-    result = 0
-    shift = 0
-
-    do {
-      byte = encoded.charCodeAt(index++) - 63
-      result |= (byte & 0x1f) << shift
-      shift += 5
-    } while (byte >= 0x20)
-
-    lng += result & 1 ? ~(result >> 1) : result >> 1
-
-    coordinates.push([lat / factor, lng / factor])
-  }
-
-  return coordinates
-}
-
-function getCurrentPosition(): Promise<Coordinates> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocalização não suportada.'))
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        })
-      },
-      () => reject(new Error('Não foi possível acessar sua localização.')),
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 30000,
-      }
-    )
-  })
-}
-
-async function safeJson<T>(response: Response): Promise<T | null> {
-  try {
-    return (await response.json()) as T
-  } catch {
-    return null
-  }
-}
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-
-  return fallback
-}
