@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { anonymizeLocation } from '@/lib/anonymize'
+import { anonymizeLocation, createReporterHash } from '@/lib/anonymize'
 import { getSql } from '@/lib/db'
 
 const reportSchema = z.object({
@@ -11,14 +11,16 @@ const reportSchema = z.object({
   reporterLng: z.coerce.number(),
 })
 
+const MAX_COMMUNITY_PRICE_DEVIATION = 0.1
+const MAX_REPORTS_PER_HOUR = 3
+
 export async function POST(request: NextRequest) {
   try {
-    const sql = getSql()
     const body = await request.json()
     const parsed = reportSchema.parse(body)
+    const sql = getSql()
 
-    // Anonymize reporter location
-    const reporterHash = anonymizeLocation(parsed.reporterLat, parsed.reporterLng)
+    const reporterHash = await buildReporterHash(request, parsed)
 
     // Validate reporter is within 500m of station
     const proximityCheck = await sql`
@@ -43,6 +45,88 @@ export async function POST(request: NextRequest) {
         { error: 'Você precisa estar a no máximo 500m do posto para atualizar o preço.' },
         { status: 403 }
       )
+    }
+
+    const recentReporterActivity = await sql`
+      SELECT COUNT(*)::int as report_count
+      FROM "DriverPriceReport"
+      WHERE "reporterHash" = ${reporterHash}
+        AND "createdAt" > NOW() - INTERVAL '1 hour'
+    `
+
+    if (Number(recentReporterActivity[0]?.report_count || 0) >= MAX_REPORTS_PER_HOUR) {
+      return NextResponse.json(
+        { error: 'Você atingiu o limite de atualizações colaborativas por hora.' },
+        { status: 429 }
+      )
+    }
+
+    const repeatedStationReport = await sql`
+      SELECT COUNT(*)::int as report_count
+      FROM "DriverPriceReport"
+      WHERE "reporterHash" = ${reporterHash}
+        AND "stationId" = ${parsed.stationId}
+        AND "fuelType" = ${parsed.fuelType}
+        AND "createdAt" > NOW() - INTERVAL '1 hour'
+    `
+
+    if (Number(repeatedStationReport[0]?.report_count || 0) > 0) {
+      return NextResponse.json(
+        {
+          error:
+            'Aguarde um pouco antes de atualizar novamente este combustível neste posto.',
+        },
+        { status: 429 }
+      )
+    }
+
+    const currentCommunityPrice = await sql`
+      SELECT
+        ROUND(AVG(price)::numeric, 2)::double precision as avg_price,
+        COUNT(*)::int as report_count
+      FROM "DriverPriceReport"
+      WHERE "stationId" = ${parsed.stationId}
+        AND "fuelType" = ${parsed.fuelType}
+        AND "createdAt" > NOW() - INTERVAL '7 days'
+    `
+
+    const baselinePrice = Number(currentCommunityPrice[0]?.avg_price)
+
+    let referencePrice =
+      Number.isFinite(baselinePrice) && baselinePrice > 0
+        ? baselinePrice
+        : null
+
+    if (referencePrice === null) {
+      const officialPrice = await sql`
+        SELECT price
+        FROM "FuelPrice"
+        WHERE "stationId" = ${parsed.stationId}
+          AND "fuelType" = ${parsed.fuelType}
+        LIMIT 1
+      `
+
+      const ownerBaseline = Number(officialPrice[0]?.price)
+
+      referencePrice =
+        Number.isFinite(ownerBaseline) && ownerBaseline > 0
+          ? ownerBaseline
+          : null
+    }
+
+    if (referencePrice !== null) {
+      const deviation =
+        Math.abs(parsed.price - referencePrice) / referencePrice
+
+      if (deviation > MAX_COMMUNITY_PRICE_DEVIATION) {
+        return NextResponse.json(
+          {
+            error:
+              'O preço enviado difere mais de 10% do valor de referência atual deste posto.',
+          },
+          { status: 422 }
+        )
+      }
     }
 
     // Insert price report
@@ -93,4 +177,27 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+async function buildReporterHash(
+  request: NextRequest,
+  parsed: z.infer<typeof reportSchema>
+) {
+  const forwardedFor = request.headers.get('x-forwarded-for')
+  const realIp = request.headers.get('x-real-ip')
+  const userAgent = request.headers.get('user-agent')
+
+  const ip =
+    forwardedFor
+      ?.split(',')
+      .map((value) => value.trim())
+      .find(Boolean) ||
+    realIp?.trim() ||
+    ''
+
+  if (ip || userAgent?.trim()) {
+    return createReporterHash(ip || 'unknown-ip', userAgent || 'unknown-agent')
+  }
+
+  return anonymizeLocation(parsed.reporterLat, parsed.reporterLng)
 }

@@ -17,22 +17,11 @@ describe('POST /api/stations/suggest', () => {
     getSqlMock.mockReset()
   })
 
-  it('creates a station suggestion and returns empty price lists', async () => {
+  it('creates a pending station suggestion', async () => {
     const sql = createMockSql([
       [],
-      [
-        {
-          id: 'station_123',
-          name: 'Posto Teste',
-          address: 'Avenida Brasil, 1000',
-          lat: -21.76,
-          lng: -43.34,
-          brand: 'Teste',
-          phone: '(32) 99999-0000',
-          source: 'DRIVER',
-          isVerified: false,
-        },
-      ],
+      [],
+      [],
     ])
     getSqlMock.mockReturnValue(sql)
 
@@ -52,15 +41,8 @@ describe('POST /api/stations/suggest', () => {
     const body = await response.json()
 
     expect(response.status).toBe(201)
-    expect(body.success).toBe(true)
-    expect(body.station).toMatchObject({
-      id: 'station_123',
-      name: 'Posto Teste',
-      owner_prices: [],
-      community_prices: [],
-      fuel_prices: [],
-    })
-    expect(sql).toHaveBeenCalledTimes(2)
+    expect(body).toEqual({ success: true })
+    expect(sql).toHaveBeenCalledTimes(3)
   })
 
   it('blocks duplicate suggestions nearby', async () => {
@@ -82,14 +64,35 @@ describe('POST /api/stations/suggest', () => {
 
     expect(response.status).toBe(409)
     expect(body).toEqual({
-      error: 'Já existe um posto parecido cadastrado nessa região.',
+      error: 'Já existe um posto com esse nome nessa localização.',
     })
   })
 
-  it('validates the request body before touching the database', async () => {
-    const sql = createMockSql([])
+  it('blocks duplicate pending suggestions for the same station area', async () => {
+    const sql = createMockSql([[], [{ id: 'pending_suggestion' }]])
     getSqlMock.mockReturnValue(sql)
 
+    const request = new NextRequest('http://localhost/api/stations/suggest', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'Posto Teste',
+        address: 'Avenida Brasil, 1000',
+        lat: -21.76,
+        lng: -43.34,
+      }),
+    })
+
+    const response = await POST(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(409)
+    expect(body).toEqual({
+      error: 'Já existe uma sugestão pendente para esse posto.',
+    })
+    expect(sql).toHaveBeenCalledTimes(2)
+  })
+
+  it('validates the request body before touching the database', async () => {
     const request = new NextRequest('http://localhost/api/stations/suggest', {
       method: 'POST',
       body: JSON.stringify({
@@ -107,7 +110,6 @@ describe('POST /api/stations/suggest', () => {
     expect(body).toEqual({
       error: 'Preencha os dados do posto corretamente.',
     })
-    expect(getSqlMock).toHaveBeenCalledTimes(1)
-    expect(sql).not.toHaveBeenCalled()
+    expect(getSqlMock).not.toHaveBeenCalled()
   })
 })

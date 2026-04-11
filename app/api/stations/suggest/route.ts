@@ -13,9 +13,9 @@ const stationSuggestionSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const sql = getSql()
     const body = await request.json()
     const parsed = stationSuggestionSchema.parse(body)
+    const sql = getSql()
 
     // Reject exact-name duplicate very close to an approved station
     const duplicateStation = await sql`
