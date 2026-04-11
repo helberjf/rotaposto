@@ -164,7 +164,7 @@ export default function StationPriceSearch({
       return
     }
     const trimmed = query.trim()
-    if (trimmed.length < 2) return
+    if (trimmed.length < 2 && !selectedNeighborhood) return
 
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -193,6 +193,30 @@ export default function StationPriceSearch({
       setLoading(false)
     }
   }, [query, selectedCity, selectedNeighborhood])
+
+  const handleNeighborhoodSearch = useCallback(async () => {
+    if (!selectedCity || !selectedNeighborhood) return
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    setLoading(true)
+    setSearched(true)
+    try {
+      const params = new URLSearchParams({ q: '' })
+      params.set('city', selectedCity.city)
+      params.set('neighborhood', selectedNeighborhood)
+      const response = await fetch(`/api/stations/search?${params.toString()}`, { signal: controller.signal })
+      if (!response.ok) throw new Error()
+      const stations = (await response.json()) as Station[]
+      setResults(stations)
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        setResults([])
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedCity, selectedNeighborhood])
 
   function handlePriceSubmitted(result: PriceReportResult) {
     if (!selectedStation) return
@@ -310,9 +334,18 @@ export default function StationPriceSearch({
                 </div>
                 <div ref={neighborhoodWrapperRef} className="relative">
                   {selectedNeighborhood ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3 py-2.5 text-sm text-[#1d4ed8]">
+                    <div className="flex items-center gap-2 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3 py-2 text-sm text-[#1d4ed8]">
                       <MapPinned className="size-4 shrink-0" />
                       <span className="flex-1">{selectedNeighborhood}</span>
+                      <button
+                        type="button"
+                        onClick={() => void handleNeighborhoodSearch()}
+                        disabled={loading}
+                        aria-label="Buscar postos neste bairro"
+                        className="flex items-center justify-center rounded-lg bg-[#1d4ed8] p-1.5 text-white transition-colors hover:bg-[#1e40af] disabled:opacity-50"
+                      >
+                        {loading ? <Spinner className="size-3.5" /> : <Search className="size-3.5" />}
+                      </button>
                       <button
                         type="button"
                         onClick={clearNeighborhood}

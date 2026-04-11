@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { getSql } from '@/lib/db'
 
 const querySchema = z.object({
-  q: z.string().min(2).max(120),
+  q: z.string().max(120).default(''),
   city: z.string().min(2).max(120).optional(),
   neighborhood: z.string().min(2).max(120).optional(),
 })
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const neighborhood = searchParams.get('neighborhood') || undefined
     const parsed = querySchema.parse({ q, city, neighborhood })
 
-    const term = `%${parsed.q}%`
+    const term = parsed.q ? `%${parsed.q}%` : '%'
     // When no city is given, '%' matches every address (no-op filter)
     const cityTerm = parsed.city ? `%${parsed.city}%` : '%'
     const neighborhoodTerm = parsed.neighborhood ? `%${parsed.neighborhood}%` : '%'
@@ -79,8 +79,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[stations-search] Error:', error)
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Informe ao menos 2 caracteres para buscar.' },
+      return NextResponse.json({ error: 'Informe o nome do posto ou selecione um bairro.' },
         { status: 400 }
       )
     }
