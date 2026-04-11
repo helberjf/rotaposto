@@ -338,7 +338,6 @@ export default function DriverPage() {
       setRadiusQuery(place.label)
       setRadiusCoords(coords)
       setRadiusNearbySuggestions(nearbySuggestions)
-      await runRadiusSearch(coords, place.label)
     } catch (locationError) {
       setError(
         getErrorMessage(locationError, 'Não foi possível acessar sua localização.')
@@ -399,7 +398,9 @@ export default function DriverPage() {
       setUserLocation([coords.lat, coords.lng])
       setMapCenter([coords.lat, coords.lng])
       setSearchSummary(
-        `${payload.total} posto${payload.total === 1 ? '' : 's'} encontrados em um raio de ${radiusKm} km de ${label}.`
+        payload.total === 0
+          ? `Nenhum posto encontrado em um raio de ${radiusKm} km.`
+          : ''
       )
     } else {
       setStations((prev) => [...prev, ...result])
@@ -924,12 +925,21 @@ export default function DriverPage() {
             <section ref={resultsRef} className="space-y-4">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div className="space-y-1">
-                  <h2 className="text-2xl font-semibold tracking-tight">
-                    Postos encontrados
-                  </h2>
-                  <p className="text-sm text-[#78716c]">
-                    {searchSummary || 'Veja os postos e preços disponíveis para essa busca.'}
-                  </p>
+                  {searchMode === 'radius' ? (
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-5xl font-bold text-[#f97316]">{stationsTotal}</span>
+                      <h2 className="text-xl font-semibold tracking-tight text-[#18181b]">
+                        posto{stationsTotal !== 1 ? 's' : ''} encontrado{stationsTotal !== 1 ? 's' : ''} a {radiusKm} km
+                      </h2>
+                    </div>
+                  ) : (
+                    <>
+                      <h2 className="text-2xl font-semibold tracking-tight">Postos encontrados</h2>
+                      <p className="text-sm text-[#78716c]">
+                        {searchSummary || 'Veja os postos e preços disponíveis para essa busca.'}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <div className="flex gap-1.5">
                   <button
