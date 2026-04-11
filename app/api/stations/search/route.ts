@@ -5,6 +5,7 @@ import { getSql } from '@/lib/db'
 const querySchema = z.object({
   q: z.string().min(2).max(120),
   city: z.string().min(2).max(120).optional(),
+  neighborhood: z.string().min(2).max(120).optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -13,11 +14,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q') || ''
     const city = searchParams.get('city') || undefined
-    const parsed = querySchema.parse({ q, city })
+    const neighborhood = searchParams.get('neighborhood') || undefined
+    const parsed = querySchema.parse({ q, city, neighborhood })
 
     const term = `%${parsed.q}%`
     // When no city is given, '%' matches every address (no-op filter)
     const cityTerm = parsed.city ? `%${parsed.city}%` : '%'
+    const neighborhoodTerm = parsed.neighborhood ? `%${parsed.neighborhood}%` : '%'
 
     const stations = await sql`
       SELECT
@@ -67,6 +70,7 @@ export async function GET(request: NextRequest) {
       ) community_prices ON true
       WHERE (s.name ILIKE ${term} OR s.address ILIKE ${term})
         AND s.address ILIKE ${cityTerm}
+        AND s.address ILIKE ${neighborhoodTerm}
       ORDER BY s.name ASC
       LIMIT 20
     `

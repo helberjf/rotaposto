@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/spinner'
-import { Building2, MapPin, Search, X } from 'lucide-react'
+import { Building2, MapPin, MapPinned, Search, X } from 'lucide-react'
 import rawCities from '@/lib/brazil-cities.json'
 
 const ALL_CITIES = rawCities as { c: string; u: string }[]
@@ -92,6 +92,62 @@ export default function StationPriceSearch({
     setResults([])
     setSearched(false)
     setShowCityRequired(false)
+    setShowNeighborhood(false)
+    setSelectedNeighborhood(null)
+    setNeighborhoodQuery('')
+  }
+
+  // ── neighborhood filter ──────────────────────────────────────────
+  const [showNeighborhood, setShowNeighborhood] = useState(false)
+  const [neighborhoodQuery, setNeighborhoodQuery] = useState('')
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState<string | null>(null)
+  const [neighborhoodSuggestions, setNeighborhoodSuggestions] = useState<string[]>([])
+  const [neighborhoodOpen, setNeighborhoodOpen] = useState(false)
+  const [neighborhoodLoading, setNeighborhoodLoading] = useState(false)
+  const neighborhoodWrapperRef = useRef<HTMLDivElement>(null)
+  const neighborhoodDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (!neighborhoodWrapperRef.current?.contains(e.target as Node)) {
+        setNeighborhoodOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
+  function handleNeighborhoodQueryChange(value: string) {
+    setNeighborhoodQuery(value)
+    if (selectedNeighborhood) setSelectedNeighborhood(null)
+    if (neighborhoodDebounceRef.current) clearTimeout(neighborhoodDebounceRef.current)
+    if (value.trim().length < 2 || !selectedCity) {
+      setNeighborhoodSuggestions([])
+      setNeighborhoodOpen(false)
+      return
+    }
+    neighborhoodDebounceRef.current = setTimeout(async () => {
+      setNeighborhoodLoading(true)
+      try {
+        const params = new URLSearchParams({ q: value.trim(), city: selectedCity.city })
+        const res = await fetch(`/api/geocode/neighborhoods?${params.toString()}`)
+        if (!res.ok) throw new Error()
+        const data = (await res.json()) as string[]
+        setNeighborhoodSuggestions(data)
+        setNeighborhoodOpen(data.length > 0)
+      } catch {
+        setNeighborhoodSuggestions([])
+      } finally {
+        setNeighborhoodLoading(false)
+      }
+    }, 350)
+  }
+
+  function clearNeighborhood() {
+    setSelectedNeighborhood(null)
+    setNeighborhoodQuery('')
+    setNeighborhoodSuggestions([])
+    setNeighborhoodOpen(false)
   }
 
   // ── station search ───────────────────────────────────────────────
@@ -120,6 +176,7 @@ export default function StationPriceSearch({
     try {
       const params = new URLSearchParams({ q: trimmed })
       if (selectedCity) params.set('city', selectedCity.city)
+      if (selectedNeighborhood) params.set('neighborhood', selectedNeighborhood)
 
       const response = await fetch(
         `/api/stations/search?${params.toString()}`,
@@ -135,7 +192,7 @@ export default function StationPriceSearch({
     } finally {
       setLoading(false)
     }
-  }, [query, selectedCity])
+  }, [query, selectedCity, selectedNeighborhood])
 
   function handlePriceSubmitted(result: PriceReportResult) {
     if (!selectedStation) return
@@ -225,6 +282,86 @@ export default function StationPriceSearch({
         </div>
         {showCityRequired ? (
           <p className="text-xs text-red-500">Selecione uma cidade antes de buscar.</p>
+        ) : null}
+
+        {/* ── Neighborhood toggle ──────────────────────────────── */}
+        {selectedCity ? (
+          <div className="pt-1">
+            {!showNeighborhood ? (
+              <button
+                type="button"
+                onClick={() => setShowNeighborhood(true)}
+                className="flex items-center gap-1.5 rounded-full border border-[#e7d6c7] bg-white px-3 py-1 text-xs font-medium text-[#78716c] transition-colors hover:bg-[#fff4eb] hover:text-[#f97316]"
+              >
+                <MapPinned className="size-3.5" />
+                Filtrar por bairro
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium text-[#78716c]">Bairro</Label>
+                  <button
+                    type="button"
+                    onClick={() => { setShowNeighborhood(false); clearNeighborhood() }}
+                    className="text-xs text-[#78716c] hover:text-[#18181b]"
+                  >
+                    Remover filtro
+                  </button>
+                </div>
+                <div ref={neighborhoodWrapperRef} className="relative">
+                  {selectedNeighborhood ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3 py-2.5 text-sm text-[#1d4ed8]">
+                      <MapPinned className="size-4 shrink-0" />
+                      <span className="flex-1">{selectedNeighborhood}</span>
+                      <button
+                        type="button"
+                        onClick={clearNeighborhood}
+                        aria-label="Remover bairro"
+                        className="text-[#1d4ed8] hover:text-[#1e3a8a]"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Input
+                        value={neighborhoodQuery}
+                        onChange={(e) => handleNeighborhoodQueryChange(e.target.value)}
+                        onFocus={() => { if (neighborhoodSuggestions.length > 0) setNeighborhoodOpen(true) }}
+                        placeholder="Ex: Bela Vista, Copacabana…"
+                        className="h-10 rounded-xl border-[#e7d6c7] bg-[#fffdfa] text-sm"
+                      />
+                      {neighborhoodLoading ? (
+                        <div className="absolute right-3 top-2.5">
+                          <Spinner className="size-4 text-[#f97316]" />
+                        </div>
+                      ) : null}
+                      {neighborhoodOpen && neighborhoodSuggestions.length > 0 ? (
+                        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-2xl border border-[#eaded3] bg-white shadow-[0_12px_30px_rgba(15,23,42,0.10)]">
+                          {neighborhoodSuggestions.map((name) => (
+                            <button
+                              key={name}
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                setSelectedNeighborhood(name)
+                                setNeighborhoodQuery(name)
+                                setNeighborhoodOpen(false)
+                              }}
+                              className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-[#fff4eb]"
+                            >
+                              <MapPinned className="size-4 shrink-0 text-[#f97316]" />
+                              <span>{name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         ) : null}
       </div>
 
