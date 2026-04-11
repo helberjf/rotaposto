@@ -155,18 +155,20 @@ export default function DriverPage() {
   const [stations, setStations] = useState<Station[]>([])
   const [stationsTotal, setStationsTotal] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [sortBy, setSortBy] = useState<'distance' | 'price'>('distance')
   const lastRadiusCoordsRef = useRef<Coordinates | null>(null)
   const lastRadiusLabelRef = useRef<string>('')
+  const isFreshSearchRef = useRef(false)
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER)
   const [routePath, setRoutePath] = useState<Array<[number, number]>>([])
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
 
   const resultsRef = useRef<HTMLElement>(null)
 
-  const visibleStations = useMemo(
-    () => sortStationsByFuelType(stations, selectedFuelType),
-    [selectedFuelType, stations]
-  )
+  const visibleStations = useMemo(() => {
+    if (sortBy === 'price') return sortStationsByFuelType(stations, selectedFuelType)
+    return [...stations].sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
+  }, [sortBy, selectedFuelType, stations])
   const cheapestStationId = useMemo(() => {
     const cheapestStation = visibleStations.find(
       (station) => getPreferredFuelPrice(station, selectedFuelType) !== null
@@ -178,7 +180,8 @@ export default function DriverPage() {
   const hasMoreStations = searchMode === 'radius' && stations.length < stationsTotal
 
   useEffect(() => {
-    if (visibleStations.length > 0) {
+    if (isFreshSearchRef.current && visibleStations.length > 0) {
+      isFreshSearchRef.current = false
       resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [visibleStations])
@@ -390,6 +393,7 @@ export default function DriverPage() {
     setStationsTotal(payload.total)
 
     if (offset === 0) {
+      isFreshSearchRef.current = true
       setStations(result)
       setRoutePath([])
       setUserLocation([coords.lat, coords.lng])
@@ -918,13 +922,37 @@ export default function DriverPage() {
 
           {visibleStations.length > 0 ? (
             <section ref={resultsRef} className="space-y-4">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-semibold tracking-tight">
-                  Postos encontrados
-                </h2>
-                <p className="text-sm text-[#78716c]">
-                  {searchSummary || 'Veja os postos e preços disponíveis para essa busca.'}
-                </p>
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    Postos encontrados
+                  </h2>
+                  <p className="text-sm text-[#78716c]">
+                    {searchSummary || 'Veja os postos e preços disponíveis para essa busca.'}
+                  </p>
+                </div>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => setSortBy('distance')}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      sortBy === 'distance'
+                        ? 'bg-[#f97316] text-white'
+                        : 'bg-[#f5f0eb] text-[#78716c] hover:bg-[#eaded3]'
+                    }`}
+                  >
+                    Distância
+                  </button>
+                  <button
+                    onClick={() => setSortBy('price')}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      sortBy === 'price'
+                        ? 'bg-[#f97316] text-white'
+                        : 'bg-[#f5f0eb] text-[#78716c] hover:bg-[#eaded3]'
+                    }`}
+                  >
+                    Preço
+                  </button>
+                </div>
               </div>
               <StationList
                 stations={visibleStations}
