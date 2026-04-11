@@ -45,6 +45,7 @@ export default function LocationAutocompleteInput({
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const requestCounter = useRef(0)
+  const justSelected = useRef(false)
 
   const shouldQuery = useMemo(
     () => value.trim().length >= minLength,
@@ -96,6 +97,11 @@ export default function LocationAutocompleteInput({
           return
         }
 
+        if (justSelected.current) {
+          justSelected.current = false
+          return
+        }
+
         setSuggestions(payload)
         setHighlightedIndex(payload.length > 0 ? 0 : -1)
         setIsOpen(true)
@@ -132,6 +138,7 @@ export default function LocationAutocompleteInput({
   }, [])
 
   function handleSelect(suggestion: LocationSuggestion) {
+    justSelected.current = true
     onValueChange(suggestion.label)
     onLocationSelect(suggestion)
     setSuggestions([])

@@ -53,16 +53,20 @@ interface ReverseGeocodeResult extends Coordinates {
 
 export default function StationSuggestionForm({
   onCreated,
+  actions,
 }: {
   onCreated?: (station: SuggestedStation) => void
+  actions?: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [locationLoading, setLocationLoading] = useState(false)
+  const [cepLoading, setCepLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [formData, setFormData] = useState({
     name: '',
+    cep: '',
     address: '',
     lat: '',
     lng: '',
@@ -73,6 +77,7 @@ export default function StationSuggestionForm({
   function resetForm() {
     setFormData({
       name: '',
+      cep: '',
       address: '',
       lat: '',
       lng: '',
@@ -91,6 +96,44 @@ export default function StationSuggestionForm({
 
       return { ...previous, [name]: value }
     })
+  }
+
+  async function handleCepChange(raw: string) {
+    const digits = raw.replace(/\D/g, '').slice(0, 8)
+    const formatted =
+      digits.length > 5
+        ? `${digits.slice(0, 5)}-${digits.slice(5)}`
+        : digits
+    setFormData((previous) => ({ ...previous, cep: formatted, lat: '', lng: '' }))
+
+    if (digits.length === 8) {
+      setCepLoading(true)
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
+        const data = (await res.json()) as {
+          erro?: boolean
+          logradouro?: string
+          bairro?: string
+          localidade?: string
+          uf?: string
+        }
+        if (!data.erro) {
+          const addr = [data.logradouro, data.bairro, data.localidade, data.uf]
+            .filter(Boolean)
+            .join(', ')
+          setFormData((previous) => ({
+            ...previous,
+            address: previous.address.trim() ? previous.address : addr,
+            lat: '',
+            lng: '',
+          }))
+        }
+      } catch {
+        // ViaCEP indisponível – usuário preenche o endereço manualmente
+      } finally {
+        setCepLoading(false)
+      }
+    }
   }
 
   async function handleUseCurrentLocation() {
@@ -125,14 +168,34 @@ export default function StationSuggestionForm({
     setSuccess('')
 
     try {
+      let resolvedLat = parseFloat(formData.lat)
+      let resolvedLng = parseFloat(formData.lng)
+
+      if (isNaN(resolvedLat) || isNaN(resolvedLng)) {
+        const query = [formData.address.trim(), formData.cep.trim()]
+          .filter(Boolean)
+          .join(', ')
+        const geoResponse = await fetch(
+          `/api/geocode?q=${encodeURIComponent(query)}`
+        )
+        if (!geoResponse.ok) {
+          throw new Error(
+            'Não foi possível localizar o endereço. Verifique o CEP e o endereço informados.'
+          )
+        }
+        const geoResult = (await geoResponse.json()) as { lat: number; lng: number }
+        resolvedLat = geoResult.lat
+        resolvedLng = geoResult.lng
+      }
+
       const response = await fetch('/api/stations/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
           address: formData.address,
-          lat: parseFloat(formData.lat),
-          lng: parseFloat(formData.lng),
+          lat: resolvedLat,
+          lng: resolvedLng,
           brand: formData.brand || null,
           phone: formData.phone || null,
         }),
@@ -170,7 +233,8 @@ export default function StationSuggestionForm({
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="space-y-3">
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {actions}
           <CollapsibleTrigger asChild>
             <Button
               type="button"
@@ -256,9 +320,45 @@ export default function StationSuggestionForm({
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="suggested-station-cep">CEP *</Label>
+                <div className="relative">
+                  <Input
+                    id="suggested-station-cep"
+                    name="cep"
+                    value={formData.cep}
+                    onChange={(e) => void handleCepChange(e.target.value)}
+                    placeholder="00000-000"
+                    disabled={loading}
+                    required
+                    maxLength={9}
+                    inputMode="numeric"
+                    className="h-11 rounded-xl border-[#e7d6c7] bg-white pr-9"
+                  />
+                  {cepLoading ? (
+                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#78716c]">
+                      <Spinner className="size-4" />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="suggested-station-phone">Telefone</Label>
+                <Input
+                  id="suggested-station-phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="(11) 99999-9999"
+                  disabled={loading}
+                  className="h-11 rounded-xl border-[#e7d6c7] bg-white"
+                />
+              </div>
+
               <div className="space-y-2 md:col-span-2">
                 <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="suggested-station-address">Endereço *</Label>
+                  <Label htmlFor="suggested-station-address">Endereço completo *</Label>
                   <Button
                     type="button"
                     variant="outline"
@@ -285,7 +385,7 @@ export default function StationSuggestionForm({
                   id="suggested-station-address"
                   name="address"
                   value={formData.address}
-                  placeholder="Digite o endereço do posto"
+                  placeholder="Ex: Rua das Flores, 123, Bairro, Cidade – SP"
                   disabled={loading}
                   onValueChange={(value) =>
                     setFormData((previous) => ({
@@ -306,50 +406,8 @@ export default function StationSuggestionForm({
                   inputClassName="h-11 rounded-xl border-[#e7d6c7] bg-white"
                 />
                 <p className="text-xs text-[#78716c]">
-                  Selecione uma sugestão para preencher a localização com precisão.
+                  Selecione uma sugestão para maior precisão, ou preencha o CEP para localização automática.
                 </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="suggested-station-phone">Telefone</Label>
-                <Input
-                  id="suggested-station-phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="(11) 99999-9999"
-                  disabled={loading}
-                  className="h-11 rounded-xl border-[#e7d6c7] bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="suggested-station-lat">Coordenadas</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    id="suggested-station-lat"
-                    name="lat"
-                    type="number"
-                    step="0.000001"
-                    value={formData.lat}
-                    onChange={handleChange}
-                    placeholder="Latitude"
-                    disabled={loading}
-                    required
-                    className="h-11 rounded-xl border-[#e7d6c7] bg-white"
-                  />
-                  <Input
-                    name="lng"
-                    type="number"
-                    step="0.000001"
-                    value={formData.lng}
-                    onChange={handleChange}
-                    placeholder="Longitude"
-                    disabled={loading}
-                    required
-                    className="h-11 rounded-xl border-[#e7d6c7] bg-white"
-                  />
-                </div>
               </div>
             </div>
 

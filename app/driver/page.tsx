@@ -1,9 +1,10 @@
-'use client'
+﻿'use client'
 
 import type { CSSProperties } from 'react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import StationMap from '@/components/driver/station-map'
 import StationSuggestionForm from '@/components/driver/station-suggestion-form'
+import StationPriceSearch from '@/components/driver/station-price-search'
 import StationList from '@/components/driver/station-list'
 import LocationAutocompleteInput, {
   type LocationSuggestion,
@@ -28,6 +29,9 @@ import {
   MapPin,
   Route,
   Search,
+  Tag,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 
 type SearchMode = 'route' | 'radius'
@@ -121,9 +125,10 @@ const benefits = [
 ]
 
 export default function DriverPage() {
-  const [searchMode, setSearchMode] = useState<SearchMode>('route')
+  const [searchMode, setSearchMode] = useState<SearchMode>('radius')
   const [mapLayerMode, setMapLayerMode] = useState<MapLayerMode>('map')
   const [busyAction, setBusyAction] = useState<BusyAction>(null)
+  const [priceSearchOpen, setPriceSearchOpen] = useState(false)
   const [error, setError] = useState('')
   const [searchSummary, setSearchSummary] = useState('')
 
@@ -152,6 +157,8 @@ export default function DriverPage() {
   const [routePath, setRoutePath] = useState<Array<[number, number]>>([])
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
 
+  const resultsRef = useRef<HTMLElement>(null)
+
   const visibleStations = useMemo(
     () => sortStationsByFuelType(stations, selectedFuelType),
     [selectedFuelType, stations]
@@ -164,8 +171,14 @@ export default function DriverPage() {
     return cheapestStation?.id
   }, [selectedFuelType, visibleStations])
 
+  useEffect(() => {
+    if (visibleStations.length > 0) {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [visibleStations])
+
   const sliderStyle = {
-    '--range-progress': `${((radiusKm - 1) / 19) * 100}%`,
+    '--range-progress': `${((radiusKm - 1) / 11) * 100}%`,
   } as CSSProperties & Record<'--range-progress', string>
 
   async function handleRadiusSearch() {
@@ -405,6 +418,20 @@ export default function DriverPage() {
     setMapCenter([suggestion.lat, suggestion.lng])
   }
 
+  async function handleRefreshStation(stationId: string) {
+    try {
+      const response = await fetch(`/api/stations/${encodeURIComponent(stationId)}`)
+      if (!response.ok) return
+      const [refreshed] = normalizeStations([await response.json()])
+      if (!refreshed) return
+      setStations((previous) =>
+        previous.map((s) => (s.id === stationId ? { ...s, ...refreshed } : s))
+      )
+    } catch {
+      // silently ignore; the user can retry
+    }
+  }
+
   function handleSuggestedStationCreated(station: SuggestedStationPayload) {
     const [normalizedStation] = normalizeStations([station])
 
@@ -481,24 +508,47 @@ export default function DriverPage() {
 
             <div className="grid gap-3 md:grid-cols-2">
               <ModeCard
-                active={searchMode === 'route'}
-                icon={Route}
-                title="Rota com Postos"
-                description="Informe origem e destino e veja os postos mais baratos no caminho"
-                onClick={() => handleModeChange('route')}
-              />
-              <ModeCard
                 active={searchMode === 'radius'}
                 icon={MapPinned}
                 title="Busca por Raio"
                 description="Pesquise postos numa área ao redor de qualquer localização por raio customizado"
                 onClick={() => handleModeChange('radius')}
               />
+              <ModeCard
+                active={searchMode === 'route'}
+                icon={Route}
+                title="Rota com Postos"
+                description="Informe origem e destino e veja os postos mais baratos no caminho"
+                onClick={() => handleModeChange('route')}
+              />
             </div>
           </section>
 
           <section className="rounded-3xl border border-[#eaded3] bg-white p-4 shadow-[0_20px_45px_rgba(15,23,42,0.05)] sm:p-5">
-            <StationSuggestionForm onCreated={handleSuggestedStationCreated} />
+            <StationSuggestionForm
+              onCreated={handleSuggestedStationCreated}
+              actions={
+                <button
+                  type="button"
+                  onClick={() => setPriceSearchOpen((v) => !v)}
+                  className="inline-flex h-9 items-center rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-3 text-sm font-medium text-[#15803d] transition-colors hover:bg-[#dcfce7]"
+                >
+                  <Tag className="mr-1.5 size-3.5" />
+                  Atualizar preço
+                  {priceSearchOpen ? (
+                    <ChevronUp className="ml-1.5 size-3.5" />
+                  ) : (
+                    <ChevronDown className="ml-1.5 size-3.5" />
+                  )}
+                </button>
+              }
+            />
+
+            {priceSearchOpen ? (
+              <div className="mb-4 rounded-[20px] border border-[#d1fae5] bg-[#f0fdf4] p-4">
+                <StationPriceSearch onPriceSubmitted={handleStationPriceUpdated} />
+              </div>
+            ) : null}
 
             {error ? (
               <div className="mb-4 rounded-2xl border border-[#fecaca] bg-[#fff1f2] px-4 py-3 text-sm text-[#b91c1c]">
@@ -662,12 +712,11 @@ export default function DriverPage() {
                   <Label htmlFor="radius-query" className="text-sm font-medium">
                     Endereço ou Local
                   </Label>
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="flex flex-col gap-2">
                     <LocationAutocompleteInput
                       id="radius-query"
                       value={radiusQuery}
                       placeholder="Ex: Avenida Paulista, São Paulo"
-                      className="flex-1"
                       suggestionsOverride={radiusNearbySuggestions}
                       onValueChange={(value) => {
                         setRadiusQuery(value)
@@ -677,49 +726,47 @@ export default function DriverPage() {
                       onLocationSelect={applyRadiusSuggestion}
                       inputClassName="h-11 rounded-xl border-[#e7d6c7] bg-[#fffdfa]"
                     />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      disabled={busyAction !== null}
-                      className="h-11 rounded-xl border-[#e7d6c7] bg-white px-5"
-                    >
-                      {busyAction === 'radius-search' ? (
-                        <>
-                          <Spinner className="mr-2 size-4" />
-                          Buscando...
-                        </>
-                      ) : (
-                        <>
-                          <Search className="mr-2 size-4" />
-                          Buscar
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleUseCurrentLocationForRadius()}
+                        disabled={busyAction !== null}
+                        className="h-11 flex-1 rounded-xl border-[#e7d6c7] bg-white px-3 text-xs"
+                      >
+                        {busyAction === 'radius-location' ? (
+                          <>
+                            <Spinner className="mr-1.5 size-3.5" />
+                            Localizando...
+                          </>
+                        ) : (
+                          <>
+                            <LocateFixed className="mr-1.5 size-3.5" />
+                            Minha localização
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        disabled={busyAction !== null}
+                        className="h-11 flex-1 rounded-xl border-[#e7d6c7] bg-white px-5"
+                      >
+                        {busyAction === 'radius-search' ? (
+                          <>
+                            <Spinner className="mr-2 size-4" />
+                            Buscando...
+                          </>
+                        ) : (
+                          <>
+                            <Search className="mr-2 size-4" />
+                            Buscar
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-xs text-[#78716c]">
-                    Ou use sua localização atual
-                  </p>
                 </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void handleUseCurrentLocationForRadius()}
-                  disabled={busyAction !== null}
-                  className="h-11 w-full rounded-xl border-[#e7d6c7] bg-white"
-                >
-                  {busyAction === 'radius-location' ? (
-                    <>
-                      <Spinner className="mr-2 size-4" />
-                      Localizando...
-                    </>
-                  ) : (
-                    <>
-                      <LocateFixed className="mr-2 size-4" />
-                      Usar Minha Localização
-                    </>
-                  )}
-                </Button>
 
                 <div className="grid gap-4 md:grid-cols-[220px_1fr] md:items-end">
                   <div className="space-y-2">
@@ -745,15 +792,35 @@ export default function DriverPage() {
                       <Label htmlFor="radius-slider" className="text-sm font-medium">
                         Raio de Busca
                       </Label>
-                      <span className="text-sm font-semibold text-[#f97316]">
-                        {radiusKm} km
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          aria-label="Diminuir raio"
+                          onClick={() => setRadiusKm((v) => Math.max(1, v - 1))}
+                          className="flex size-6 items-center justify-center rounded-md border border-[#e7d6c7] bg-white text-[#78716c] transition-colors hover:bg-[#fff4eb] hover:text-[#f97316] disabled:opacity-40"
+                          disabled={radiusKm <= 1}
+                        >
+                          <span className="text-base leading-none">−</span>
+                        </button>
+                        <span className="min-w-14 text-center text-sm font-semibold text-[#f97316]">
+                          {radiusKm} km
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="Aumentar raio"
+                          onClick={() => setRadiusKm((v) => Math.min(12, v + 1))}
+                          className="flex size-6 items-center justify-center rounded-md border border-[#e7d6c7] bg-white text-[#78716c] transition-colors hover:bg-[#fff4eb] hover:text-[#f97316] disabled:opacity-40"
+                          disabled={radiusKm >= 12}
+                        >
+                          <span className="text-base leading-none">+</span>
+                        </button>
+                      </div>
                     </div>
                     <input
                       id="radius-slider"
                       type="range"
                       min="1"
-                      max="20"
+                      max="12"
                       step="1"
                       value={radiusKm}
                       onChange={(event) => setRadiusKm(Number(event.target.value))}
@@ -821,7 +888,7 @@ export default function DriverPage() {
           </section>
 
           {visibleStations.length > 0 ? (
-            <section className="space-y-4">
+            <section ref={resultsRef} className="space-y-4">
               <div className="space-y-1">
                 <h2 className="text-2xl font-semibold tracking-tight">
                   Postos encontrados
@@ -835,6 +902,7 @@ export default function DriverPage() {
                 preferredFuelType={selectedFuelType}
                 highlightStationId={cheapestStationId}
                 onPriceSubmitted={handleStationPriceUpdated}
+                onRefresh={handleRefreshStation}
               />
             </section>
           ) : searchSummary ? (

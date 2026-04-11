@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import PriceReportDialog from './price-report-dialog'
-import { MapPin, PencilLine, Phone, Share2 } from 'lucide-react'
+import { MapPin, PencilLine, Phone, RefreshCw, Share2 } from 'lucide-react'
 
 type FuelType = 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'GNV'
 
@@ -44,14 +44,17 @@ export default function StationList({
   preferredFuelType,
   highlightStationId,
   onPriceSubmitted,
+  onRefresh,
 }: {
   stations: Station[]
   preferredFuelType?: FuelType
   highlightStationId?: string
   onPriceSubmitted?: (stationId: string, result: PriceReportResult) => void
+  onRefresh?: (stationId: string) => Promise<void>
 }) {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null)
   const [sharedStationId, setSharedStationId] = useState<string | null>(null)
+  const [refreshingId, setRefreshingId] = useState<string | null>(null)
 
   if (!stations.length) {
     return (
@@ -274,6 +277,24 @@ export default function StationList({
                   <Share2 className="mr-2 size-4" />
                   {sharedStationId === station.id ? 'Copiado' : 'Compartilhar'}
                 </Button>
+                {onRefresh ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={refreshingId === station.id}
+                    onClick={async () => {
+                      setRefreshingId(station.id)
+                      await onRefresh(station.id)
+                      setRefreshingId(null)
+                    }}
+                    className="h-10 rounded-xl border-[#eaded3] px-3"
+                    title="Atualizar posto"
+                  >
+                    <RefreshCw
+                      className={`size-4 ${refreshingId === station.id ? 'animate-spin' : ''}`}
+                    />
+                  </Button>
+                ) : null}
               </div>
             </article>
           )

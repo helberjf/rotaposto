@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -19,8 +19,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
+import { calculateDistance } from '@/lib/geo'
 
 type FuelType = 'GASOLINE' | 'ETHANOL' | 'DIESEL' | 'GNV'
+
+const MAX_DISTANCE_KM = 0.5
 
 interface StationFuelPrice {
   fuelType: FuelType
@@ -57,11 +60,39 @@ export default function PriceReportDialog({
 }) {
   const [fuelType, setFuelType] = useState<FuelType>('GASOLINE')
   const [price, setPrice] = useState('')
-  const [reporterLat] = useState(station.lat.toString())
-  const [reporterLng] = useState(station.lng.toString())
+  const [reporterLat, setReporterLat] = useState<number | null>(null)
+  const [reporterLng, setReporterLng] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+  const [geoLoading, setGeoLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [distanceKm, setDistanceKm] = useState<number | null>(null)
+
+  const tooFar = distanceKm !== null && distanceKm > MAX_DISTANCE_KM
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setError('Geolocalização não suportada pelo seu navegador.')
+      setGeoLoading(false)
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        setReporterLat(lat)
+        setReporterLng(lng)
+        setDistanceKm(calculateDistance(lat, lng, station.lat, station.lng))
+        setGeoLoading(false)
+      },
+      () => {
+        setError('Não foi possível acessar sua localização. Permita o acesso para atualizar preços.')
+        setGeoLoading(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    )
+  }, [station.lat, station.lng])
 
   const ownerPrice = station.owner_prices?.find((item) => item.fuelType === fuelType)
   const communityPrice = station.community_prices?.find(
@@ -71,6 +102,22 @@ export default function PriceReportDialog({
   async function handleSubmit() {
     if (!price) {
       setError('Por favor, informe o preço.')
+      return
+    }
+
+    const priceNum = parseFloat(price.replace(',', '.'))
+    if (isNaN(priceNum) || priceNum <= 0) {
+      setError('Preço inválido. Use o formato 6,29.')
+      return
+    }
+
+    if (reporterLat === null || reporterLng === null) {
+      setError('Aguarde a localização ser obtida.')
+      return
+    }
+
+    if (tooFar) {
+      setError(`Você precisa estar a no máximo 500m do posto para atualizar o preço. Distância atual: ${((distanceKm ?? 0) * 1000).toFixed(0)}m.`)
       return
     }
 
@@ -84,14 +131,15 @@ export default function PriceReportDialog({
         body: JSON.stringify({
           stationId: station.id,
           fuelType,
-          price: parseFloat(price),
-          reporterLat: parseFloat(reporterLat),
-          reporterLng: parseFloat(reporterLng),
+          price: parseFloat(price.replace(',', '.')),
+          reporterLat,
+          reporterLng,
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Erro ao editar o preço.')
+        const payload = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(payload?.error || 'Erro ao editar o preço.')
       }
 
       const payload = (await response.json()) as {
@@ -108,7 +156,11 @@ export default function PriceReportDialog({
       }, 1500)
     } catch (submitError) {
       console.error(submitError)
-      setError('Erro ao salvar o preço. Tente novamente.')
+      setError(
+        submitError instanceof Error && submitError.message
+          ? submitError.message
+          : 'Erro ao salvar o preço. Tente novamente.'
+      )
     } finally {
       setLoading(false)
     }
@@ -144,8 +196,23 @@ export default function PriceReportDialog({
               A média da comunidade foi atualizada.
             </p>
           </div>
+        ) : geoLoading ? (
+          <div className="flex flex-col items-center gap-3 py-10">
+            <Spinner className="size-6" />
+            <p className="text-sm text-[#78716c]">Obtendo sua localização…</p>
+          </div>
         ) : (
           <div className="space-y-4">
+            {tooFar ? (
+              <div className="rounded-xl border border-[#fecaca] bg-[#fff1f2] p-3 text-sm text-[#b91c1c]">
+                Você está a {((distanceKm ?? 0) * 1000).toFixed(0)}m do posto. É necessário estar a no máximo 500m para atualizar o preço.
+              </div>
+            ) : distanceKm !== null ? (
+              <div className="rounded-xl border border-[#bbf7d0] bg-[#f0fdf4] p-3 text-sm text-[#15803d]">
+                Você está a {((distanceKm) * 1000).toFixed(0)}m do posto. Pode atualizar o preço.
+              </div>
+            ) : null}
+
             {error ? (
               <div className="rounded-xl border border-[#fecaca] bg-[#fff1f2] p-3 text-sm text-[#b91c1c]">
                 {error}
@@ -212,14 +279,29 @@ export default function PriceReportDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="price">Seu Preço (R$)</Label>
+              <Label htmlFor="price">
+                Seu Preço (R$)
+                <span className="ml-2 text-xs font-normal text-[#78716c]">
+                  Formato: 6,29
+                </span>
+              </Label>
               <Input
                 id="price"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
+                type="text"
+                inputMode="numeric"
+                placeholder="6,29"
                 value={price}
-                onChange={(event) => setPrice(event.target.value)}
+                maxLength={4}
+                onChange={(event) => {
+                  const digits = event.target.value.replace(/\D/g, '').slice(0, 3)
+                  if (digits.length === 0) {
+                    setPrice('')
+                  } else if (digits.length === 1) {
+                    setPrice(digits)
+                  } else {
+                    setPrice(digits[0] + ',' + digits.slice(1))
+                  }
+                }}
               />
             </div>
 
@@ -238,7 +320,7 @@ export default function PriceReportDialog({
               </Button>
               <Button
                 onClick={() => void handleSubmit()}
-                disabled={loading}
+                disabled={loading || tooFar || reporterLat === null}
                 className="flex-1 bg-[#f97316] text-white hover:bg-[#ea6a12]"
               >
                 {loading ? (

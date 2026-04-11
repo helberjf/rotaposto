@@ -20,6 +20,31 @@ export async function POST(request: NextRequest) {
     // Anonymize reporter location
     const reporterHash = anonymizeLocation(parsed.reporterLat, parsed.reporterLng)
 
+    // Validate reporter is within 500m of station
+    const proximityCheck = await sql`
+      SELECT ST_Distance(
+        location,
+        ST_SetSRID(ST_MakePoint(${parsed.reporterLng}, ${parsed.reporterLat}), 4326)::geography
+      ) AS distance
+      FROM "Station"
+      WHERE id = ${parsed.stationId}
+      LIMIT 1
+    `
+
+    if (!proximityCheck.length) {
+      return NextResponse.json(
+        { error: 'Posto não encontrado.' },
+        { status: 404 }
+      )
+    }
+
+    if (Number(proximityCheck[0].distance) > 500) {
+      return NextResponse.json(
+        { error: 'Você precisa estar a no máximo 500m do posto para atualizar o preço.' },
+        { status: 403 }
+      )
+    }
+
     // Insert price report
     const id = `report_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     await sql`
