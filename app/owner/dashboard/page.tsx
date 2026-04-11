@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Spinner } from '@/components/ui/spinner'
-import { MapPin, Plus, LogOut, Fuel } from 'lucide-react'
+import { MapPin, Plus, LogOut, Fuel, ClipboardList, CheckCircle, XCircle } from 'lucide-react'
 import StationForm from '@/components/owner/station-form'
 import StationCard from '@/components/owner/station-card'
 import { signOut } from 'next-auth/react'
@@ -27,6 +27,19 @@ interface Station {
   }>
 }
 
+interface Suggestion {
+  id: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+  brand?: string
+  phone?: string
+  status: string
+  rejectionReason?: string
+  createdAt: string
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -34,6 +47,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [selectedStation, setSelectedStation] = useState<Station | null>(null)
   const [showNewStationForm, setShowNewStationForm] = useState(false)
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [rejectingId, setRejectingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -44,6 +60,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (status === 'authenticated') {
       fetchStations()
+      fetchSuggestions()
     }
   }, [status])
 
@@ -57,6 +74,37 @@ export default function DashboardPage() {
       console.error('Error fetching stations:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSuggestions = async () => {
+    try {
+      const res = await fetch('/api/owner/station-suggestions')
+      if (res.ok) {
+        setSuggestions(await res.json())
+        setIsAdmin(true)
+      }
+      // 403 = not admin, tab stays hidden
+    } catch {
+      // network error, ignore
+    }
+  }
+
+  const handleSuggestionAction = async (
+    id: string,
+    action: 'APPROVED' | 'REJECTED',
+    reason?: string
+  ) => {
+    setRejectingId(id)
+    try {
+      await fetch('/api/owner/station-suggestions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action, rejectionReason: reason }),
+      })
+      await fetchSuggestions()
+    } finally {
+      setRejectingId(null)
     }
   }
 
@@ -122,6 +170,17 @@ export default function DashboardPage() {
               <MapPin className="w-4 h-4" />
               <span>Estações</span>
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="suggestions" className="flex gap-2">
+                <ClipboardList className="w-4 h-4" />
+                <span>Sugestões</span>
+                {suggestions.filter((s) => s.status === 'PENDING').length > 0 && (
+                  <span className="ml-1 rounded-full bg-orange-500 px-1.5 py-0.5 text-xs text-white leading-none">
+                    {suggestions.filter((s) => s.status === 'PENDING').length}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="stations" className="space-y-4">
@@ -185,6 +244,87 @@ export default function DashboardPage() {
               </div>
             )}
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="suggestions" className="space-y-4">
+              {suggestions.length === 0 ? (
+                <Card>
+                  <CardContent className="py-8 text-center text-gray-500">
+                    <ClipboardList className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhuma sugestão recebida</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {suggestions.map((s) => (
+                    <Card key={s.id} className={s.status === 'PENDING' ? 'border-orange-200' : ''}>
+                      <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-gray-900">{s.name}</p>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                s.status === 'PENDING'
+                                  ? 'bg-orange-100 text-orange-700'
+                                  : s.status === 'APPROVED'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {s.status === 'PENDING'
+                                ? 'Pendente'
+                                : s.status === 'APPROVED'
+                                  ? 'Aprovado'
+                                  : 'Rejeitado'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">{s.address}</p>
+                          {s.brand && <p className="text-xs text-gray-400">{s.brand}</p>}
+                          {s.rejectionReason && (
+                            <p className="text-xs text-red-500 mt-1">Motivo: {s.rejectionReason}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1">
+                            {new Date(s.createdAt).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </p>
+                        </div>
+                        {s.status === 'PENDING' && (
+                          <div className="flex gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              disabled={rejectingId === s.id}
+                              onClick={() => void handleSuggestionAction(s.id, 'APPROVED')}
+                              className="h-8 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                              Aprovar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={rejectingId === s.id}
+                              onClick={() => {
+                                const reason =
+                                  window.prompt('Motivo da rejeição (opcional):') ?? undefined
+                                void handleSuggestionAction(s.id, 'REJECTED', reason)
+                              }}
+                              className="h-8 border-red-200 text-red-600 hover:bg-red-50 rounded-lg"
+                            >
+                              <XCircle className="w-3.5 h-3.5 mr-1" />
+                              Rejeitar
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

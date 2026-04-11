@@ -81,3 +81,25 @@ model DriverPriceReport {
   @@index([stationId, createdAt])
   @@index([reporterHash])
 }
+
+enum SuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model StationSuggestion {
+  id              String           @id
+  name            String
+  address         String
+  lat             Float
+  lng             Float
+  brand           String?
+  phone           String?
+  status          SuggestionStatus @default(PENDING)
+  rejectionReason String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status])
+}

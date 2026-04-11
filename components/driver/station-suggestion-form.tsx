@@ -51,6 +51,14 @@ interface ReverseGeocodeResult extends Coordinates {
   label: string
 }
 
+interface NearbyStation {
+  id: string
+  name: string
+  address: string
+  brand?: string
+  distance: number
+}
+
 export default function StationSuggestionForm({
   onCreated,
   actions,
@@ -62,8 +70,11 @@ export default function StationSuggestionForm({
   const [loading, setLoading] = useState(false)
   const [locationLoading, setLocationLoading] = useState(false)
   const [cepLoading, setCepLoading] = useState(false)
+  const [checkLoading, setCheckLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [nearbyMatches, setNearbyMatches] = useState<NearbyStation[]>([])
+  const [confirmedNotDuplicate, setConfirmedNotDuplicate] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     cep: '',
@@ -163,21 +174,20 @@ export default function StationSuggestionForm({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setLoading(true)
     setError('')
     setSuccess('')
 
-    try {
-      let resolvedLat = parseFloat(formData.lat)
-      let resolvedLng = parseFloat(formData.lng)
+    // ── Step 1: resolve coordinates ──────────────────────────────────
+    let resolvedLat = parseFloat(formData.lat)
+    let resolvedLng = parseFloat(formData.lng)
 
-      if (isNaN(resolvedLat) || isNaN(resolvedLng)) {
+    if (isNaN(resolvedLat) || isNaN(resolvedLng)) {
+      setLoading(true)
+      try {
         const query = [formData.address.trim(), formData.cep.trim()]
           .filter(Boolean)
           .join(', ')
-        const geoResponse = await fetch(
-          `/api/geocode?q=${encodeURIComponent(query)}`
-        )
+        const geoResponse = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`)
         if (!geoResponse.ok) {
           throw new Error(
             'Não foi possível localizar o endereço. Verifique o CEP e o endereço informados.'
@@ -186,8 +196,45 @@ export default function StationSuggestionForm({
         const geoResult = (await geoResponse.json()) as { lat: number; lng: number }
         resolvedLat = geoResult.lat
         resolvedLng = geoResult.lng
+        setFormData((prev) => ({
+          ...prev,
+          lat: resolvedLat.toFixed(6),
+          lng: resolvedLng.toFixed(6),
+        }))
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Não foi possível localizar o endereço.'
+        )
+        setLoading(false)
+        return
+      } finally {
+        setLoading(false)
       }
+    }
 
+    // ── Step 2: check for nearby stations (unless user already confirmed) ──
+    if (!confirmedNotDuplicate) {
+      setCheckLoading(true)
+      try {
+        const res = await fetch(
+          `/api/stations/suggest/check?lat=${resolvedLat}&lng=${resolvedLng}`
+        )
+        const nearby = (await res.json()) as NearbyStation[]
+        if (Array.isArray(nearby) && nearby.length > 0) {
+          setNearbyMatches(nearby)
+          setCheckLoading(false)
+          return // pause — show confirmation UI
+        }
+      } catch {
+        // if check fails, proceed anyway
+      } finally {
+        setCheckLoading(false)
+      }
+    }
+
+    // ── Step 3: submit to moderation queue ───────────────────────────
+    setLoading(true)
+    try {
       const response = await fetch('/api/stations/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,23 +248,25 @@ export default function StationSuggestionForm({
         }),
       })
 
-      const payload = (await safeJson<{
-        error?: string
-        station?: SuggestedStation
-      }>(response)) ?? { error: 'Não foi possível sugerir o posto.' }
+      const payload = (await safeJson<{ error?: string }>(response)) ?? {
+        error: 'Erro desconhecido.',
+      }
 
-      if (!response.ok || !payload.station) {
+      if (!response.ok) {
         throw new Error(payload.error || 'Não foi possível sugerir o posto.')
       }
 
-      onCreated?.(payload.station)
-      setSuccess('Posto sugerido com sucesso.')
+      setSuccess(
+        'Sugestão enviada! O posto aparecerá no mapa após revisão.'
+      )
       resetForm()
+      setNearbyMatches([])
+      setConfirmedNotDuplicate(false)
 
       window.setTimeout(() => {
         setOpen(false)
         setSuccess('')
-      }, 1400)
+      }, 2500)
     } catch (submitError) {
       console.error(submitError)
       setError(
@@ -411,22 +460,73 @@ export default function StationSuggestionForm({
               </div>
             </div>
 
+            {/* ── Nearby station confirmation ────────────────────────────── */}
+            {nearbyMatches.length > 0 && !confirmedNotDuplicate ? (
+              <div className="rounded-2xl border border-[#fde68a] bg-[#fffbeb] p-4 space-y-3">
+                <p className="text-sm font-semibold text-[#92400e]">
+                  Encontramos postos próximos ao endereço. É um deles?
+                </p>
+                <div className="space-y-2">
+                  {nearbyMatches.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-start justify-between gap-3 rounded-xl border border-[#fde68a] bg-white px-3 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-[#18181b]">{m.name}</p>
+                        <p className="truncate text-xs text-[#78716c] mt-0.5">{m.address}</p>
+                        <p className="text-xs text-[#78716c]">{m.distance} m de distância</p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setNearbyMatches([])
+                          setOpen(false)
+                        }}
+                        className="h-8 shrink-0 rounded-xl border-[#fde68a] text-xs"
+                      >
+                        Sim, é esse
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setConfirmedNotDuplicate(true)
+                    setNearbyMatches([])
+                  }}
+                  className="w-full h-9 rounded-xl bg-[#f97316] text-white hover:bg-[#ea6a12] text-xs"
+                >
+                  Não, é um posto diferente — continuar
+                </Button>
+              </div>
+            ) : null}
+
             <div className="flex items-center justify-between gap-3 pt-1">
               <p className="text-xs text-[#78716c]">
-                O posto entra como sugestão colaborativa e pode receber preços depois.
+                A sugestão será revisada antes de aparecer no mapa.
               </p>
               <Button
                 type="submit"
-                disabled={loading || locationLoading}
+                disabled={
+                  loading ||
+                  locationLoading ||
+                  checkLoading ||
+                  (nearbyMatches.length > 0 && !confirmedNotDuplicate)
+                }
                 className="h-10 rounded-xl bg-[#f97316] px-4 text-white hover:bg-[#ea6a12]"
               >
-                {loading ? (
+                {loading || checkLoading ? (
                   <>
                     <Spinner className="mr-2 size-4" />
-                    Enviando...
+                    {checkLoading ? 'Verificando...' : 'Enviando...'}
                   </>
                 ) : (
-                  'Salvar sugestão'
+                  'Enviar para revisão'
                 )}
               </Button>
             </div>
