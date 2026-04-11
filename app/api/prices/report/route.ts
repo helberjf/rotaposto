@@ -47,7 +47,9 @@ export async function POST(request: NextRequest) {
       ? {
           fuelType: parsed.fuelType,
           price: Number(recentReports[0].avg_price),
-          updatedAt: String(recentReports[0].updated_at || new Date().toISOString()),
+          updatedAt: new Date(
+            recentReports[0].updated_at || new Date().toISOString()
+          ).toISOString(),
           reportCount: Number(recentReports[0].report_count || 1),
         }
       : null
@@ -56,8 +58,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[price-report] Error:', error)
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Parâmetros inválidos.' },
+        { status: 400 }
+      )
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Não foi possível salvar o reporte agora.' },
+      { status: 500 }
+    )
   }
 }

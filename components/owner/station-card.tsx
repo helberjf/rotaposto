@@ -76,16 +76,23 @@ export default function StationCard({
         )}
 
         <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-          <p>Lat: {station.lat.toFixed(4)} | Lng: {station.lng.toFixed(4)}</p>
+          <p>
+            Lat: {station.lat.toFixed(4)} | Lng: {station.lng.toFixed(4)}
+          </p>
         </div>
 
         {prices.length > 0 && (
           <div className="bg-blue-50 rounded-lg p-3 space-y-2">
             {prices.map((fuel) => (
-              <div key={fuel.fuelType} className="flex justify-between items-center text-sm">
+              <div
+                key={fuel.fuelType}
+                className="flex justify-between items-center text-sm"
+              >
                 <span className="font-medium text-gray-700">{fuel.fuelType}</span>
                 <div className="text-right">
-                  <p className="font-bold text-gray-900">R$ {fuel.price.toFixed(2)}</p>
+                  <p className="font-bold text-gray-900">
+                    R$ {fuel.price.toFixed(2)}
+                  </p>
                 </div>
               </div>
             ))}
@@ -112,7 +119,7 @@ export default function StationCard({
                 onClick={() => setShowPriceForm(true)}
               >
                 <DollarSign className="w-4 h-4 mr-1" />
-                Atualizar PreÃ§o
+                Atualizar preço
               </Button>
               <Button
                 size="sm"

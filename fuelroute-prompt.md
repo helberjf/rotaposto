@@ -533,7 +533,7 @@ NEXT_PUBLIC_GOOGLE_MAPS_KEY=AIza...
 ## SEED DE DESENVOLVIMENTO (prisma/seed.ts)
 
 Criar seed que popula:
-- 2 donos de posto (com senhas bcrypt de "senha123")
+- 2 donos de posto (com hashes bcrypt pré-definidos)
 - 5 postos verificados em São Paulo (com lat/lng reais) com `source: OWNER, isVerified: true`
 - 2 postos não verificados sugeridos por motoristas com `source: DRIVER, isVerified: false`
 - Preços oficiais (`FuelPrice`) variados para gasolina e etanol nos postos verificados

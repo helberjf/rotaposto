@@ -1,4 +1,4 @@
--- Seed Station Owners (passwords are bcrypt hashed: "senha123")
+-- Seed Station Owners (passwords stored only as bcrypt hashes)
 INSERT INTO "StationOwner" (id, email, password, name, "createdAt", "updatedAt") VALUES
 ('owner1', 'joao@posto.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'João Silva', NOW(), NOW()),
 ('owner2', 'maria@posto.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Maria Santos', NOW(), NOW())

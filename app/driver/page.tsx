@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import type { CSSProperties } from 'react'
 import { useMemo, useState } from 'react'
@@ -105,18 +105,18 @@ const DEFAULT_CENTER: [number, number] = [-23.5505, -46.6333]
 const benefits = [
   {
     icon: Fuel,
-    title: 'Pre├ºos em Tempo Real',
-    description: 'Pre├ºos oficiais dos donos e reportes colaborativos da comunidade',
+    title: 'Preços em Tempo Real',
+    description: 'Preços oficiais dos donos e reportes colaborativos da comunidade',
   },
   {
     icon: MapPin,
-    title: 'Localiza├º├úo Precisa',
-    description: 'Encontre postos pr├│ximos a voc├¬ ou ao longo da sua rota',
+    title: 'Localização Precisa',
+    description: 'Encontre postos próximos a você ou ao longo da sua rota',
   },
   {
     icon: Route,
-    title: 'Sem Login Necess├írio',
-    description: 'Contribua com pre├ºos e sugest├╡es de forma an├┤nima e colaborativa',
+    title: 'Sem Login Necessário',
+    description: 'Contribua com preços e sugestões de forma anônima e colaborativa',
   },
 ]
 
@@ -173,12 +173,12 @@ export default function DriverPage() {
       if (userLocation) {
         await runRadiusSearch(
           { lat: userLocation[0], lng: userLocation[1] },
-          'Sua localiza├º├úo atual'
+          'Sua localização atual'
         )
         return
       }
 
-      setError('Informe um endere├ºo ou use sua localiza├º├úo atual.')
+      setError('Informe um endereço ou use sua localização atual.')
       return
     }
 
@@ -199,7 +199,7 @@ export default function DriverPage() {
       }
     } catch (searchError) {
       setError(
-        getErrorMessage(searchError, 'N├úo foi poss├¡vel localizar esse endere├ºo.')
+        getErrorMessage(searchError, 'Não foi possível localizar esse endereço.')
       )
     } finally {
       setBusyAction(null)
@@ -208,7 +208,7 @@ export default function DriverPage() {
 
   async function handleRouteSearch() {
     if (!routeOrigin.trim() && !routeOriginCoords) {
-      setError('Informe a origem ou use sua localiza├º├úo atual.')
+      setError('Informe a origem ou use sua localização atual.')
       return
     }
 
@@ -260,7 +260,7 @@ export default function DriverPage() {
 
       if (!response.ok) {
         const payload = await safeJson<{ error?: string }>(response)
-        throw new Error(payload?.error || 'N├úo foi poss├¡vel buscar postos na rota.')
+        throw new Error(payload?.error || 'Não foi possível buscar postos na rota.')
       }
 
       const result = response.ok
@@ -294,7 +294,7 @@ export default function DriverPage() {
         )
       )
     } catch (searchError) {
-      setError(getErrorMessage(searchError, 'N├úo foi poss├¡vel calcular essa rota.'))
+      setError(getErrorMessage(searchError, 'Não foi possível calcular essa rota.'))
     } finally {
       setBusyAction(null)
     }
@@ -308,7 +308,7 @@ export default function DriverPage() {
       const coords = await getCurrentPosition()
       const place = await reverseGeocode(coords).catch(() => ({
         ...coords,
-        label: 'Sua localiza├º├úo atual',
+        label: 'Sua localização atual',
       }))
       const nearbySuggestions = await fetchNearbySuggestions(coords).catch(
         () => []
@@ -319,7 +319,7 @@ export default function DriverPage() {
       await runRadiusSearch(coords, place.label)
     } catch (locationError) {
       setError(
-        getErrorMessage(locationError, 'N├úo foi poss├¡vel acessar sua localiza├º├úo.')
+        getErrorMessage(locationError, 'Não foi possível acessar sua localização.')
       )
     } finally {
       setBusyAction(null)
@@ -334,7 +334,7 @@ export default function DriverPage() {
       const coords = await getCurrentPosition()
       const place = await reverseGeocode(coords).catch(() => ({
         ...coords,
-        label: 'Minha localiza├º├úo atual',
+        label: 'Minha localização atual',
       }))
       const nearbySuggestions = await fetchNearbySuggestions(coords).catch(
         () => []
@@ -346,7 +346,7 @@ export default function DriverPage() {
       setMapCenter([coords.lat, coords.lng])
     } catch (locationError) {
       setError(
-        getErrorMessage(locationError, 'N├úo foi poss├¡vel acessar sua localiza├º├úo.')
+        getErrorMessage(locationError, 'Não foi possível acessar sua localização.')
       )
     } finally {
       setBusyAction(null)
@@ -362,7 +362,7 @@ export default function DriverPage() {
 
     if (!response.ok) {
       const payload = await safeJson<{ error?: string }>(response)
-      throw new Error(payload?.error || 'N├úo foi poss├¡vel buscar postos por raio.')
+      throw new Error(payload?.error || 'Não foi possível buscar postos por raio.')
     }
 
     const result = normalizeStations(await response.json())
@@ -467,7 +467,7 @@ export default function DriverPage() {
             <div className="text-xl font-semibold tracking-tight">Rotaposto</div>
           </div>
           <p className="hidden text-sm text-[#78716c] md:block">
-            Encontre os melhores pre├ºos de combust├¡vel
+            Encontre os melhores preços de combustível
           </p>
         </div>
       </header>
@@ -476,7 +476,7 @@ export default function DriverPage() {
         <div className="space-y-8">
           <section className="space-y-5">
             <h1 className="text-3xl font-semibold tracking-tight sm:text-[2.1rem]">
-              Como voc├¬ quer buscar?
+              Como você quer buscar?
             </h1>
 
             <div className="grid gap-3 md:grid-cols-2">
@@ -491,7 +491,7 @@ export default function DriverPage() {
                 active={searchMode === 'radius'}
                 icon={MapPinned}
                 title="Busca por Raio"
-                description="Pesquise postos numa ├írea ao redor de qualquer localiza├º├úo por raio customizado"
+                description="Pesquise postos numa área ao redor de qualquer localização por raio customizado"
                 onClick={() => handleModeChange('radius')}
               />
             </div>
@@ -523,7 +523,7 @@ export default function DriverPage() {
                       <LocationAutocompleteInput
                         id="origin"
                         value={routeOrigin}
-                        placeholder="Ex: Avenida Paulista, S├úo Paulo"
+                        placeholder="Ex: Avenida Paulista, São Paulo"
                         suggestionsOverride={routeOriginNearbySuggestions}
                         onValueChange={(value) => {
                           setRouteOrigin(value)
@@ -548,13 +548,13 @@ export default function DriverPage() {
                         ) : (
                           <>
                             <LocateFixed className="mr-2 size-4" />
-                            Minha Localiza├º├úo
+                            Minha Localização
                           </>
                         )}
                       </Button>
                     </div>
                     <p className="text-xs text-[#78716c]">
-                      Digite o endere├ºo de partida
+                      Digite o endereço de partida
                     </p>
                   </div>
 
@@ -574,12 +574,12 @@ export default function DriverPage() {
                       inputClassName="h-11 rounded-xl border-[#e7d6c7] bg-[#fffdfa]"
                     />
                     <p className="text-xs text-[#78716c]">
-                      Digite o endere├ºo de chegada
+                      Digite o endereço de chegada
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Tipo de Combust├¡vel *</Label>
+                    <Label className="text-sm font-medium">Tipo de Combustível *</Label>
                     <Select
                       value={selectedFuelType}
                       onValueChange={(value) => setSelectedFuelType(value as FuelType)}
@@ -614,20 +614,20 @@ export default function DriverPage() {
 
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="tank" className="text-sm font-medium">
-                      Combust├¡vel no Tanque (litros) - Opcional
+                      Combustível no Tanque (litros) - Opcional
                     </Label>
                     <Input
                       id="tank"
                       type="number"
                       min="0"
                       step="0.1"
-                      placeholder="Ex: 30 (deixe em branco para n├úo calcular autonomia)"
+                      placeholder="Ex: 30 (deixe em branco para não calcular autonomia)"
                       value={routeTankLiters}
                       onChange={(event) => setRouteTankLiters(event.target.value)}
                       className="h-11 rounded-xl border-[#e7d6c7] bg-[#fffdfa]"
                     />
                     <p className="text-xs text-[#78716c]">
-                      Se informado, vamos destacar os postos mais vi├íveis para a sua autonomia atual.
+                      Se informado, vamos destacar os postos mais viáveis para a sua autonomia atual.
                     </p>
                   </div>
                 </div>
@@ -660,13 +660,13 @@ export default function DriverPage() {
               >
                 <div className="space-y-2">
                   <Label htmlFor="radius-query" className="text-sm font-medium">
-                    Endere├ºo ou Local
+                    Endereço ou Local
                   </Label>
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <LocationAutocompleteInput
                       id="radius-query"
                       value={radiusQuery}
-                      placeholder="Ex: Avenida Paulista, S├úo Paulo"
+                      placeholder="Ex: Avenida Paulista, São Paulo"
                       className="flex-1"
                       suggestionsOverride={radiusNearbySuggestions}
                       onValueChange={(value) => {
@@ -697,7 +697,7 @@ export default function DriverPage() {
                     </Button>
                   </div>
                   <p className="text-xs text-[#78716c]">
-                    Ou use sua localiza├º├úo atual
+                    Ou use sua localização atual
                   </p>
                 </div>
 
@@ -716,14 +716,14 @@ export default function DriverPage() {
                   ) : (
                     <>
                       <LocateFixed className="mr-2 size-4" />
-                      Usar Minha Localiza├º├úo
+                      Usar Minha Localização
                     </>
                   )}
                 </Button>
 
                 <div className="grid gap-4 md:grid-cols-[220px_1fr] md:items-end">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Tipo de Combust├¡vel</Label>
+                    <Label className="text-sm font-medium">Tipo de Combustível</Label>
                     <Select
                       value={selectedFuelType}
                       onValueChange={(value) => setSelectedFuelType(value as FuelType)}
@@ -827,7 +827,7 @@ export default function DriverPage() {
                   Postos encontrados
                 </h2>
                 <p className="text-sm text-[#78716c]">
-                  {searchSummary || 'Veja os postos e pre├ºos dispon├¡veis para essa busca.'}
+                  {searchSummary || 'Veja os postos e preços disponíveis para essa busca.'}
                 </p>
               </div>
               <StationList
@@ -915,7 +915,7 @@ async function geocodeAddress(query: string): Promise<GeocodeResult> {
 
   if (!response.ok) {
     const payload = await safeJson<{ error?: string }>(response)
-    throw new Error(payload?.error || 'Endere├ºo n├úo encontrado.')
+    throw new Error(payload?.error || 'Endereço não encontrado.')
   }
 
   return response.json() as Promise<GeocodeResult>
@@ -928,7 +928,7 @@ async function reverseGeocode(coords: Coordinates): Promise<GeocodeResult> {
 
   if (!response.ok) {
     const payload = await safeJson<{ error?: string }>(response)
-    throw new Error(payload?.error || 'N├úo foi poss├¡vel identificar sua localiza├º├úo.')
+    throw new Error(payload?.error || 'Não foi possível identificar sua localização.')
   }
 
   return response.json() as Promise<GeocodeResult>
@@ -958,7 +958,7 @@ async function fetchDirections(
 
   if (!response.ok) {
     const payload = await safeJson<{ error?: string }>(response)
-    throw new Error(payload?.error || 'N├úo foi poss├¡vel gerar a rota.')
+    throw new Error(payload?.error || 'Não foi possível gerar a rota.')
   }
 
   return response.json() as Promise<DirectionsResult>
@@ -1044,7 +1044,7 @@ function selectBestRoute(
   )[0]
 
   if (!fastestRoute) {
-    throw new Error('Nenhuma rota dispon├â┬¡vel.')
+    throw new Error('Nenhuma rota disponível.')
   }
 
   const availableFuelPrices = candidates
@@ -1142,14 +1142,14 @@ function buildRouteSearchSummary(
   }
 
   if (bestRoute.polyline === fastestRoute.polyline) {
-    return `Rota mais r├â┬ípida mantida ap├â┬│s comparar ${totalAlternatives} op├â┬º├â┬╡es. ${stationsLabel}`
+    return `Rota mais rápida mantida após comparar ${totalAlternatives} opções. ${stationsLabel}`
   }
 
   if (bestRoute.stationsUnavailable && stationCount === 0) {
-    return `Rota alternativa escolhida pela malha vi├â┬íria. N├â┬úo foi poss├â┬¡vel comparar os postos agora.`
+    return `Rota alternativa escolhida pela malha viária. Não foi possível comparar os postos agora.`
   }
 
-  return `Rota mais econ├â┬┤mica selecionada ap├â┬│s comparar ${totalAlternatives} op├â┬º├â┬╡es. ${stationsLabel}`
+  return `Rota mais econômica selecionada após comparar ${totalAlternatives} opções. ${stationsLabel}`
 }
 
 function average(values: number[]) {
@@ -1333,7 +1333,7 @@ function decodePolyline(
 function getCurrentPosition(): Promise<Coordinates> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error('Geolocaliza├º├úo n├úo suportada.'))
+      reject(new Error('Geolocalização não suportada.'))
       return
     }
 
@@ -1344,7 +1344,7 @@ function getCurrentPosition(): Promise<Coordinates> {
           lng: position.coords.longitude,
         })
       },
-      () => reject(new Error('N├úo foi poss├¡vel acessar sua localiza├º├úo.')),
+      () => reject(new Error('Não foi possível acessar sua localização.')),
       {
         enableHighAccuracy: true,
         timeout: 10000,

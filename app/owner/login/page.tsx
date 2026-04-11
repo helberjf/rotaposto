@@ -7,7 +7,13 @@ import { signIn } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import { Fuel } from 'lucide-react'
 
@@ -51,7 +57,7 @@ function LoginForm() {
         <Card>
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl">Rotaposto</CardTitle>
-            <CardDescription>Entre com sua conta de proprietÃ¡rio</CardDescription>
+            <CardDescription>Entre com sua conta de proprietário</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -79,7 +85,7 @@ function LoginForm() {
                   id="password"
                   name="password"
                   type="password"
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="********"
                   required
                   disabled={loading}
                 />
@@ -99,8 +105,11 @@ function LoginForm() {
 
             <div className="mt-4 text-center text-sm">
               <p className="text-gray-600">
-                NÃ£o tem uma conta?{' '}
-                <Link href="/owner/register" className="text-blue-600 hover:underline font-semibold">
+                Não tem uma conta?{' '}
+                <Link
+                  href="/owner/register"
+                  className="text-blue-600 hover:underline font-semibold"
+                >
                   Registre-se
                 </Link>
               </p>

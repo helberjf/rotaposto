@@ -16,16 +16,16 @@ export async function registerOwner(formData: FormData) {
   try {
     authSchema.parse({ email, password, name })
   } catch {
-    return { error: 'Dados invÃ¡lidos' }
+    return { error: 'Dados inválidos' }
   }
 
   if (password !== confirmPassword) {
-    return { error: 'Senhas nÃ£o correspondem' }
+    return { error: 'Senhas não correspondem' }
   }
 
   const existingOwner = await getStationOwnerByEmail(email)
   if (existingOwner) {
-    return { error: 'Email jÃ¡ registrado' }
+    return { error: 'Email já registrado' }
   }
 
   try {

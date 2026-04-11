@@ -10,7 +10,17 @@ import { Spinner } from '@/components/ui/spinner'
 import { MapPin, Navigation } from 'lucide-react'
 
 interface SearchResult {
-  stations: Array<Record<string, unknown> & { id: string; name: string; address: string; lat: number; lng: number; source: string; isVerified: boolean }>
+  stations: Array<
+    Record<string, unknown> & {
+      id: string
+      name: string
+      address: string
+      lat: number
+      lng: number
+      source: string
+      isVerified: boolean
+    }
+  >
   center?: [number, number]
 }
 
@@ -40,19 +50,19 @@ export default function RadiusSearchForm({
           setGeoLoading(false)
         },
         () => {
-          setError('NÃ£o foi possÃ­vel obter sua localizaÃ§Ã£o')
+          setError('Não foi possível obter sua localização')
           setGeoLoading(false)
         }
       )
     } else {
-      setError('GeolocalizaÃ§Ã£o nÃ£o suportada')
+      setError('Geolocalização não suportada')
       setGeoLoading(false)
     }
   }
 
   const handleSearch = useCallback(async () => {
     if (!lat || !lng) {
-      setError('Por favor, defina sua localizaÃ§Ã£o')
+      setError('Por favor, defina sua localização')
       return
     }
 
@@ -62,7 +72,7 @@ export default function RadiusSearchForm({
         `/api/stations/nearby?lat=${lat}&lng=${lng}&radius=${radius}`
       )
 
-      if (!response.ok) throw new Error('Erro ao buscar estaÃ§Ãµes')
+      if (!response.ok) throw new Error('Erro ao buscar estações')
 
       const stations = await response.json()
       onSearch({
@@ -70,7 +80,7 @@ export default function RadiusSearchForm({
         center: [parseFloat(lat), parseFloat(lng)],
       })
     } catch (err) {
-      setError('Erro ao buscar estaÃ§Ãµes. Tente novamente.')
+      setError('Erro ao buscar estações. Tente novamente.')
       console.error(err)
     }
   }, [lat, lng, onSearch, radius])
@@ -116,8 +126,10 @@ export default function RadiusSearchForm({
 
         <div className="space-y-2">
           <div className="flex justify-between">
-            <Label>Raio de Busca</Label>
-            <span className="text-sm font-semibold text-blue-600">{(radius / 1000).toFixed(1)} km</span>
+            <Label>Raio de busca</Label>
+            <span className="text-sm font-semibold text-blue-600">
+              {(radius / 1000).toFixed(1)} km
+            </span>
           </div>
           <Slider
             value={[radius]}
@@ -144,12 +156,16 @@ export default function RadiusSearchForm({
             ) : (
               <>
                 <Navigation className="w-4 h-4 mr-2" />
-                Minha LocalizaÃ§Ã£o
+                Minha localização
               </>
             )}
           </Button>
 
-          <Button onClick={handleSearch} disabled={isLoading || !lat || !lng} className="flex-1">
+          <Button
+            onClick={handleSearch}
+            disabled={isLoading || !lat || !lng}
+            className="flex-1"
+          >
             {isLoading ? (
               <>
                 <Spinner className="w-4 h-4 mr-2" />

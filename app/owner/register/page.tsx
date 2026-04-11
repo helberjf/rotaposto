@@ -7,7 +7,13 @@ import { signIn } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import { Fuel } from 'lucide-react'
 import { registerOwner } from '@/app/actions/auth'
@@ -24,12 +30,12 @@ export default function RegisterPage() {
     setError('')
 
     if (password !== confirmPassword) {
-      setError('As senhas nÃ£o correspondem')
+      setError('As senhas não correspondem')
       return
     }
 
     if (password.length < 8) {
-      setError('A senha deve ter no mÃ­nimo 8 caracteres')
+      setError('A senha deve ter no mínimo 8 caracteres')
       return
     }
 
@@ -50,7 +56,7 @@ export default function RegisterPage() {
     })
 
     if (!signInResult?.ok) {
-      setError('Conta criada, mas o login automÃ¡tico falhou')
+      setError('Conta criada, mas o login automático falhou')
       setLoading(false)
       return
     }
@@ -70,7 +76,7 @@ export default function RegisterPage() {
         <Card>
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl">Rotaposto</CardTitle>
-            <CardDescription>Criar conta de proprietÃ¡rio</CardDescription>
+            <CardDescription>Criar conta de proprietário</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -81,11 +87,11 @@ export default function RegisterPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="name">Nome Completo</Label>
+                <Label htmlFor="name">Nome completo</Label>
                 <Input
                   id="name"
                   name="name"
-                  placeholder="JoÃ£o Silva"
+                  placeholder="João Silva"
                   required
                   disabled={loading}
                 />
@@ -109,7 +115,7 @@ export default function RegisterPage() {
                   id="password"
                   name="password"
                   type="password"
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="********"
                   required
                   disabled={loading}
                   value={password}
@@ -118,12 +124,12 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                <Label htmlFor="confirmPassword">Confirmar senha</Label>
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
                   type="password"
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="********"
                   required
                   disabled={loading}
                   value={confirmPassword}
@@ -145,8 +151,11 @@ export default function RegisterPage() {
 
             <div className="mt-4 text-center text-sm">
               <p className="text-gray-600">
-                JÃ¡ tem uma conta?{' '}
-                <Link href="/owner/login" className="text-blue-600 hover:underline font-semibold">
+                Já tem uma conta?{' '}
+                <Link
+                  href="/owner/login"
+                  className="text-blue-600 hover:underline font-semibold"
+                >
                   Entre aqui
                 </Link>
               </p>

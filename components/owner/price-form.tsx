@@ -38,7 +38,7 @@ export default function PriceForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!price) {
-      setError('Por favor, informe o preÃ§o')
+      setError('Por favor, informe o preço')
       return
     }
 
@@ -55,12 +55,12 @@ export default function PriceForm({
         }),
       })
 
-      if (!response.ok) throw new Error('Erro ao atualizar preÃ§o')
+      if (!response.ok) throw new Error('Erro ao atualizar preço')
 
       const result: FuelPrice = await response.json()
       onSuccess(result)
     } catch (err) {
-      setError('Erro ao atualizar preÃ§o. Tente novamente.')
+      setError('Erro ao atualizar preço. Tente novamente.')
       console.error(err)
     } finally {
       setLoading(false)
@@ -76,7 +76,9 @@ export default function PriceForm({
       )}
 
       <div className="space-y-1">
-        <Label htmlFor="fuel" className="text-xs">CombustÃ­vel</Label>
+        <Label htmlFor="fuel" className="text-xs">
+          Combustível
+        </Label>
         <Select value={fuelType} onValueChange={setFuelType}>
           <SelectTrigger className="h-8">
             <SelectValue />
@@ -91,7 +93,9 @@ export default function PriceForm({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="price" className="text-xs">PreÃ§o (R$)</Label>
+        <Label htmlFor="price" className="text-xs">
+          Preço (R$)
+        </Label>
         <Input
           id="price"
           placeholder="0.00"
