@@ -153,6 +153,10 @@ export default function DriverPage() {
     useState<LocationSuggestion[]>([])
 
   const [stations, setStations] = useState<Station[]>([])
+  const [stationsTotal, setStationsTotal] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const lastRadiusCoordsRef = useRef<Coordinates | null>(null)
+  const lastRadiusLabelRef = useRef<string>('')
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER)
   const [routePath, setRoutePath] = useState<Array<[number, number]>>([])
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
@@ -170,6 +174,8 @@ export default function DriverPage() {
 
     return cheapestStation?.id
   }, [selectedFuelType, visibleStations])
+
+  const hasMoreStations = searchMode === 'radius' && stations.length < stationsTotal
 
   useEffect(() => {
     if (visibleStations.length > 0) {
@@ -366,11 +372,9 @@ export default function DriverPage() {
     }
   }
 
-  async function runRadiusSearch(coords: Coordinates, label: string) {
+  async function runRadiusSearch(coords: Coordinates, label: string, offset = 0) {
     const response = await fetch(
-      `/api/stations/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=${
-        radiusKm * 1000
-      }`
+      `/api/stations/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=${radiusKm * 1000}&limit=10&offset=${offset}`
     )
 
     if (!response.ok) {
@@ -378,14 +382,38 @@ export default function DriverPage() {
       throw new Error(payload?.error || 'Não foi possível buscar postos por raio.')
     }
 
-    const result = normalizeStations(await response.json())
-    setStations(result)
-    setRoutePath([])
-    setUserLocation([coords.lat, coords.lng])
-    setMapCenter([coords.lat, coords.lng])
-    setSearchSummary(
-      `${result.length} posto${result.length === 1 ? '' : 's'} encontrados em um raio de ${radiusKm} km de ${label}.`
-    )
+    const payload = await response.json() as { stations: unknown[]; total: number }
+    const result = normalizeStations(payload.stations)
+
+    lastRadiusCoordsRef.current = coords
+    lastRadiusLabelRef.current = label
+    setStationsTotal(payload.total)
+
+    if (offset === 0) {
+      setStations(result)
+      setRoutePath([])
+      setUserLocation([coords.lat, coords.lng])
+      setMapCenter([coords.lat, coords.lng])
+      setSearchSummary(
+        `${payload.total} posto${payload.total === 1 ? '' : 's'} encontrados em um raio de ${radiusKm} km de ${label}.`
+      )
+    } else {
+      setStations((prev) => [...prev, ...result])
+    }
+  }
+
+  async function loadMoreStations() {
+    const coords = lastRadiusCoordsRef.current
+    const label = lastRadiusLabelRef.current
+    if (!coords || loadingMore) return
+    setLoadingMore(true)
+    try {
+      await runRadiusSearch(coords, label, stations.length)
+    } catch {
+      // silently ignore — user can scroll up/down to retry
+    } finally {
+      setLoadingMore(false)
+    }
   }
 
   function handleModeChange(nextMode: SearchMode) {
@@ -393,6 +421,7 @@ export default function DriverPage() {
     setError('')
     setSearchSummary('')
     setStations([])
+    setStationsTotal(0)
     setRoutePath([])
     setRadiusCoords(null)
     setRadiusNearbySuggestions([])
@@ -903,6 +932,9 @@ export default function DriverPage() {
                 highlightStationId={cheapestStationId}
                 onPriceSubmitted={handleStationPriceUpdated}
                 onRefresh={handleRefreshStation}
+                hasMore={hasMoreStations}
+                loadingMore={loadingMore}
+                onLoadMore={loadMoreStations}
               />
             </section>
           ) : searchSummary ? (

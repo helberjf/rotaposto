@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import PriceReportDialog from './price-report-dialog'
 import { MapPin, PencilLine, Phone, RefreshCw, Share2 } from 'lucide-react'
@@ -45,16 +45,37 @@ export default function StationList({
   highlightStationId,
   onPriceSubmitted,
   onRefresh,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: {
   stations: Station[]
   preferredFuelType?: FuelType
   highlightStationId?: string
   onPriceSubmitted?: (stationId: string, result: PriceReportResult) => void
   onRefresh?: (stationId: string) => Promise<void>
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
 }) {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null)
   const [sharedStationId, setSharedStationId] = useState<string | null>(null)
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  // Trigger server load-more when sentinel enters viewport
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el || !hasMore || !onLoadMore) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) onLoadMore()
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMore, onLoadMore])
 
   if (!stations.length) {
     return (
@@ -300,6 +321,19 @@ export default function StationList({
           )
         })}
       </div>
+
+      {/* Sentinel — triggers server-side load-more when scrolled into view */}
+      <div ref={sentinelRef} className="h-1" />
+
+      {loadingMore ? (
+        <p className="py-2 text-center text-sm text-[#78716c]">Carregando mais postos…</p>
+      ) : hasMore ? (
+        <p className="py-2 text-center text-sm text-[#78716c]">Role para carregar mais postos</p>
+      ) : stations.length > 0 ? (
+        <p className="py-2 text-center text-sm text-[#78716c]">
+          Todos os {stations.length} postos exibidos
+        </p>
+      ) : null}
 
       {selectedStation ? (
         <PriceReportDialog

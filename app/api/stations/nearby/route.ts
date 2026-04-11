@@ -6,6 +6,8 @@ const querySchema = z.object({
   lat: z.coerce.number(),
   lng: z.coerce.number(),
   radius: z.coerce.number().default(2000), // meters
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+  offset: z.coerce.number().int().min(0).default(0),
 })
 
 export async function GET(request: NextRequest) {
@@ -15,14 +17,17 @@ export async function GET(request: NextRequest) {
     const lat = searchParams.get('lat')
     const lng = searchParams.get('lng')
     const radius = searchParams.get('radius') || '2000'
+    const limit = searchParams.get('limit') || '10'
+    const offset = searchParams.get('offset') || '0'
 
-    const parsed = querySchema.parse({ lat, lng, radius })
+    const parsed = querySchema.parse({ lat, lng, radius, limit, offset })
 
     // Query stations within radius using PostGIS
     const stations = await sql`
       SELECT 
         s.id, s.name, s.address, s.lat, s.lng, s.brand, s.phone, s.source, s."isVerified",
         ST_Distance(s.location, ST_SetSRID(ST_MakePoint(${parsed.lng}, ${parsed.lat}), 4326)::geography) as distance,
+        COUNT(*) OVER() AS total_count,
         COALESCE(owner_prices.prices, '[]'::json) as owner_prices,
         COALESCE(community_prices.prices, '[]'::json) as community_prices
       FROM "Station" s
@@ -72,10 +77,13 @@ export async function GET(request: NextRequest) {
         ${parsed.radius}
       )
       ORDER BY distance ASC
-      LIMIT 50
+      LIMIT ${parsed.limit} OFFSET ${parsed.offset}
     `
 
-    return NextResponse.json(stations)
+    const total = (stations[0] as { total_count?: number })?.total_count ?? 0
+    const rows = stations.map(({ total_count: _tc, ...rest }) => rest)
+
+    return NextResponse.json({ stations: rows, total })
   } catch (error) {
     console.error('[nearby] Error:', error)
     if (error instanceof z.ZodError) {
