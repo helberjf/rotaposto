@@ -910,7 +910,7 @@ export default function DriverPage() {
             </div>
           </section>
 
-          <section className="grid gap-4 md:grid-cols-3">
+          <section className="grid gap-3 md:grid-cols-3">
             {benefits.map((benefit) => (
               <BenefitCard
                 key={benefit.title}
@@ -1038,12 +1038,18 @@ function BenefitCard({
   description: string
 }) {
   return (
-    <div className="rounded-[22px] border border-[#e7e5e4] bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
-      <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-[#fff4eb] text-[#f97316]">
-        <Icon className="size-5" />
+    <div className="rounded-[18px] border border-[#e7e5e4] bg-white px-4 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
+      <div className="flex items-start gap-3">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#fff4eb] text-[#f97316]">
+          <Icon className="size-[18px]" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-[15px] font-semibold leading-5 tracking-tight">
+            {title}
+          </h3>
+          <p className="mt-1 text-xs leading-5 text-[#78716c]">{description}</p>
+        </div>
       </div>
-      <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-[#78716c]">{description}</p>
     </div>
   )
 }
