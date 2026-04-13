@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
 import { getSql } from '@/lib/db'
+import { isOwnerSession } from '@/lib/auth/session'
 
 const stationSchema = z.object({
   name: z.string().min(2),
@@ -14,11 +15,11 @@ const stationSchema = z.object({
   phone: z.string().optional(),
 })
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const sql = getSql()
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session || !isOwnerSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const sql = getSql()
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session || !isOwnerSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

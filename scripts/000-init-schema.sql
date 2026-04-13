@@ -17,12 +17,44 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
+DO $$ BEGIN
+    CREATE TYPE "OwnerRole" AS ENUM ('OWNER', 'ADMIN');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE "OwnerAccountStatus" AS ENUM (
+        'PENDING_EMAIL_VERIFICATION',
+        'PENDING_APPROVAL',
+        'ACTIVE',
+        'REJECTED',
+        'BLOCKED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE "AuthTokenType" AS ENUM ('EMAIL_VERIFICATION', 'PASSWORD_RESET');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 -- Create StationOwner table
 CREATE TABLE IF NOT EXISTS "StationOwner" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "cnpj" TEXT,
+    "phone" TEXT,
+    "role" "OwnerRole" NOT NULL DEFAULT 'OWNER',
+    "status" "OwnerAccountStatus" NOT NULL DEFAULT 'PENDING_EMAIL_VERIFICATION',
+    "emailVerifiedAt" TIMESTAMP(3),
+    "approvedAt" TIMESTAMP(3),
+    "approvedByEmail" TEXT,
+    "rejectionReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
@@ -31,6 +63,7 @@ CREATE TABLE IF NOT EXISTS "StationOwner" (
 
 -- Create unique index on email
 CREATE UNIQUE INDEX IF NOT EXISTS "StationOwner_email_key" ON "StationOwner"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "StationOwner_cnpj_key" ON "StationOwner"("cnpj") WHERE "cnpj" IS NOT NULL;
 
 -- Create Station table
 CREATE TABLE IF NOT EXISTS "Station" (
@@ -89,6 +122,23 @@ CREATE TABLE IF NOT EXISTS "DriverPriceReport" (
 CREATE INDEX IF NOT EXISTS "DriverPriceReport_stationId_createdAt_idx" ON "DriverPriceReport"("stationId", "createdAt" DESC);
 CREATE INDEX IF NOT EXISTS "DriverPriceReport_reporterHash_idx" ON "DriverPriceReport"("reporterHash");
 
+-- Create AuthToken table
+CREATE TABLE IF NOT EXISTS "AuthToken" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "type" "AuthTokenType" NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "ownerId" TEXT,
+
+    CONSTRAINT "AuthToken_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "AuthToken_tokenHash_key" ON "AuthToken"("tokenHash");
+CREATE INDEX IF NOT EXISTS "AuthToken_email_type_idx" ON "AuthToken"("email", "type");
+CREATE INDEX IF NOT EXISTS "AuthToken_ownerId_idx" ON "AuthToken"("ownerId");
+
 -- Add foreign key constraints
 ALTER TABLE "Station" DROP CONSTRAINT IF EXISTS "Station_ownerId_fkey";
 ALTER TABLE "Station" ADD CONSTRAINT "Station_ownerId_fkey" 
@@ -101,6 +151,10 @@ ALTER TABLE "FuelPrice" ADD CONSTRAINT "FuelPrice_stationId_fkey"
 ALTER TABLE "DriverPriceReport" DROP CONSTRAINT IF EXISTS "DriverPriceReport_stationId_fkey";
 ALTER TABLE "DriverPriceReport" ADD CONSTRAINT "DriverPriceReport_stationId_fkey" 
     FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "AuthToken" DROP CONSTRAINT IF EXISTS "AuthToken_ownerId_fkey";
+ALTER TABLE "AuthToken" ADD CONSTRAINT "AuthToken_ownerId_fkey"
+    FOREIGN KEY ("ownerId") REFERENCES "StationOwner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Create trigger to auto-update location on insert/update
 CREATE OR REPLACE FUNCTION update_station_location()

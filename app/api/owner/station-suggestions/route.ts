@@ -2,16 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { getSql } from '@/lib/db'
+import { isAdminSession } from '@/lib/auth/session'
 import { z } from 'zod'
-
-function isAdmin(email: string | null | undefined): boolean {
-  const adminEmail = process.env.ADMIN_EMAIL
-  return Boolean(adminEmail && email && email.toLowerCase() === adminEmail.toLowerCase())
-}
 
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!isAdmin(session?.user?.email)) {
+  if (!isAdminSession(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -37,7 +33,7 @@ const actionSchema = z.object({
 
 export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions)
-  if (!isAdmin(session?.user?.email)) {
+  if (!isAdminSession(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

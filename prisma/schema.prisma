@@ -20,14 +20,41 @@ enum StationSource {
   DRIVER
 }
 
+enum OwnerRole {
+  OWNER
+  ADMIN
+}
+
+enum OwnerAccountStatus {
+  PENDING_EMAIL_VERIFICATION
+  PENDING_APPROVAL
+  ACTIVE
+  REJECTED
+  BLOCKED
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
 model StationOwner {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  password  String
-  name      String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  stations  Station[]
+  id               String             @id @default(cuid())
+  email            String             @unique
+  password         String
+  name             String
+  cnpj             String?            @unique
+  phone            String?
+  role             OwnerRole          @default(OWNER)
+  status           OwnerAccountStatus @default(PENDING_EMAIL_VERIFICATION)
+  emailVerifiedAt  DateTime?
+  approvedAt       DateTime?
+  approvedByEmail  String?
+  rejectionReason  String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  stations         Station[]
+  tokens           AuthToken[]
 }
 
 model Station {
@@ -102,4 +129,19 @@ model StationSuggestion {
   updatedAt       DateTime         @updatedAt
 
   @@index([status])
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  email     String
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  createdAt DateTime      @default(now())
+
+  ownerId   String?
+  owner     StationOwner? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([email, type])
+  @@index([ownerId])
 }

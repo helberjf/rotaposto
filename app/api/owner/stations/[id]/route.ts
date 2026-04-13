@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
 import { getSql } from '@/lib/db'
+import { isOwnerSession } from '@/lib/auth/session'
 
 const stationSchema = z.object({
   name: z.string().min(2),
@@ -22,7 +23,7 @@ export async function GET(
     const { id } = await params
     const sql = getSql()
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session || !isOwnerSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -58,7 +59,7 @@ export async function PATCH(
     const { id } = await params
     const sql = getSql()
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session || !isOwnerSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

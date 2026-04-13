@@ -1,7 +1,11 @@
 -- Seed Station Owners (passwords stored only as bcrypt hashes)
-INSERT INTO "StationOwner" (id, email, password, name, "createdAt", "updatedAt") VALUES
-('owner1', 'joao@posto.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'João Silva', NOW(), NOW()),
-('owner2', 'maria@posto.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Maria Santos', NOW(), NOW())
+INSERT INTO "StationOwner" (
+  id, email, password, name, cnpj, phone, role, status,
+  "emailVerifiedAt", "approvedAt", "approvedByEmail", "createdAt", "updatedAt"
+) VALUES
+('owner1', 'joao@posto.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'João Silva', '12345678000190', '11999990001', 'OWNER', 'ACTIVE', NOW(), NOW(), 'admin@rotaposto.com', NOW(), NOW()),
+('owner2', 'maria@posto.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Maria Santos', '98765432000110', '11999990002', 'OWNER', 'ACTIVE', NOW(), NOW(), 'admin@rotaposto.com', NOW(), NOW()),
+('admin1', 'admin@rotaposto.com', '$2b$10$RrVh5aorjiqfr4cBSsCe5em/oYGT8QwpRRF2f6wDe57IKQvkyhKyK', 'Admin Rotaposto', '11111111000191', '11999990099', 'ADMIN', 'ACTIVE', NOW(), NOW(), 'system', NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed Verified Stations (OWNER source) in São Paulo
