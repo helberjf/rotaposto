@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import AppAccessSheet from '@/components/app-access-sheet'
 import StationMap from '@/components/driver/station-map'
 import StationSuggestionForm from '@/components/driver/station-suggestion-form'
 import StationPriceSearch from '@/components/driver/station-price-search'
@@ -527,9 +528,12 @@ export default function DriverPage() {
             </div>
             <div className="text-xl font-semibold tracking-tight">Rotaposto</div>
           </div>
-          <p className="hidden text-sm text-[#78716c] md:block">
-            Encontre os melhores preços de combustível
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="hidden text-sm text-[#78716c] md:block">
+              Encontre os melhores preços de combustível
+            </p>
+            <AppAccessSheet />
+          </div>
         </div>
       </header>
 
